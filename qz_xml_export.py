@@ -27,20 +27,36 @@ class QzXmlExport:
 
 def _row_attributes(segment, path, repetitions, diagnostics):
     value = Decimal(str(segment["measure_value"]))
+    speed = Decimal(str(segment["speed_kmh"]))
+    by_distance = segment["measure_mode"] == "Distance"
     adjustment = Decimal(0)
     seconds = 0
-    if segment["measure_mode"] == "Distance":
+    attributes = {}
+    if by_distance:
         if segment["distance_unit"] == "m":
             value /= 1000
-        attributes = {"distance": format(value.normalize(), "f")}
+        attributes["distance"] = format(value.normalize(), "f")
+        exact = value * 3600 / speed
     else:
         exact = value * 60
-        rounded = exact.to_integral_value(rounding=ROUND_HALF_UP)
-        if not 1 <= rounded < 86400:
-            raise QzXmlExportError(
-                f"{path} ({segment['name']}): duration {exact} s is outside the "
-                "QZ range 00:00:01 to 23:59:59 after rounding."
-            )
+    rounded = exact.to_integral_value(rounding=ROUND_HALF_UP)
+    if 1 <= rounded < 86400:
+        hours, remainder = divmod(int(rounded), 3600)
+        minutes, seconds_part = divmod(remainder, 60)
+        attributes["duration"] = f"{hours:02}:{minutes:02}:{seconds_part:02}"
+    elif by_distance:
+        diagnostics.append(Diagnostic(
+            "warning", "preview_duration_unavailable",
+            f"{segment['name']}: estimated duration is outside the QZ range "
+            f"after rounding ({repetitions} occurrence(s)).", path,
+        ))
+    else:
+        raise QzXmlExportError(
+            f"{path} ({segment['name']}): duration {exact} s is outside the "
+            "QZ range 00:00:01 to 23:59:59 after rounding."
+        )
+
+    if not by_distance:
         seconds = int(rounded)
         adjustment = rounded - exact
         if adjustment:
@@ -49,12 +65,8 @@ def _row_attributes(segment, path, repetitions, diagnostics):
                 f"{segment['name']}: {exact} s rounded to {seconds} s "
                 f"per occurrence ({repetitions} occurrence(s)).", path,
             ))
-        hours, remainder = divmod(seconds, 3600)
-        minutes, seconds_part = divmod(remainder, 60)
-        attributes = {"duration": f"{hours:02}:{minutes:02}:{seconds_part:02}"}
-
     attributes.update(
-        speed=format(Decimal(str(segment["speed_kmh"])).normalize(), "f"),
+        speed=format(speed.normalize(), "f"),
         inclination=format(Decimal(str(segment["incline_percent"])).normalize(), "f"),
         forcespeed="1",
         zonehr="0",

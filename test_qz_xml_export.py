@@ -27,7 +27,7 @@ class ExportTests(unittest.TestCase):
             self.assertEqual(row.tag, "row")
             self.assertEqual(len(row), 0)
             end = set(row.attrib) & {"duration", "distance"}
-            self.assertEqual(len(end), 1)
+            self.assertTrue(end)
             self.assertEqual(set(row.attrib) - end,
                              {"speed", "inclination", "forcespeed", "zonehr"})
             self.assertEqual(row.get("forcespeed"), "1")
@@ -37,7 +37,7 @@ class ExportTests(unittest.TestCase):
             if "duration" in end:
                 self.assertRegex(row.get("duration"), r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$")
                 self.assertNotEqual(row.get("duration"), "00:00:00")
-            else:
+            if "distance" in end:
                 self.assertGreater(float(row.get("distance")), 0)
         return list(root)
 
@@ -61,11 +61,14 @@ class ExportTests(unittest.TestCase):
         original = path.read_bytes()
         data = json.loads(original)
         before = copy.deepcopy(data)
-        rows = self.rows(export_workout(data))
+        result = export_workout(data)
+        rows = self.rows(result)
         self.assertEqual([(r.get("distance"), r.get("duration")) for r in rows],
-                         [(None, "00:10:00")] + [("3", None), (None, "00:03:00")] * 3
+                         [(None, "00:10:00")] + [("3", "00:12:51"), (None, "00:03:00")] * 3
                          + [(None, "00:05:00")])
         self.assertEqual([r.get("speed") for r in rows], ["10"] + ["14", "10"] * 3 + ["10"])
+        self.assertEqual(result.timed_seconds, 1440)
+        self.assertEqual(result.duration_adjustment_seconds, Decimal(0))
         self.assertEqual(data, before)
         self.assertEqual(path.read_bytes(), original)
 
@@ -81,7 +84,19 @@ class ExportTests(unittest.TestCase):
                     measure_mode="Distance", distance_unit="m", measure_value=meters)]})
                 row, = self.rows(result)
                 self.assertEqual(row.get("distance"), expected)
+                self.assertEqual(row.get("duration"), "00:22:30")
                 self.assertEqual(result.timed_seconds, 0)
+
+    def test_distance_preserved_when_preview_duration_is_outside_qz_range(self):
+        for meters in (0.1, 200000):
+            with self.subTest(meters=meters):
+                result = export_workout({"segments": [segment(
+                    measure_mode="Distance", distance_unit="m", measure_value=meters)]})
+                row, = self.rows(result)
+                self.assertEqual(Decimal(row.get("distance")), Decimal(str(meters)) / 1000)
+                self.assertNotIn("duration", row.attrib)
+                self.assertIn("preview_duration_unavailable",
+                              {d.code for d in result.diagnostics})
 
     def test_decline_has_segment_name_and_path(self):
         with self.assertRaises(ProfileCompatibilityError) as caught:
