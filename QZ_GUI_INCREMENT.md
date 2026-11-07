@@ -17,3 +17,5 @@ Tutti i 61 test sono passati con Python 3.15 e il comando python -B -m unittest.
 Il branch feature/qz-export-ui parte da 08bec8d. Il commit che contiene questo report raccoglie la modifica proposta per la pull request verso main. Il merge è soggetto ad autorizzazione separata.
 
 Il prossimo passo di verifica è importare dalla GUI un allenamento misto nella build QZ Android effettiva e controllare separatamente anteprima e transizioni sul tapis quando disponibile.
+
+Il commit di implementazione è f573d88. La [pull request #7](https://github.com/daniel91universe/treadcraft/pull/7) è aperta in bozza verso main.
