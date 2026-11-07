@@ -2,11 +2,57 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import json
 import copy
+import os
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+import xml.etree.ElementTree as ET
 from workout_data import (
     normalize_segment, normalize_workout, normalize_block_values,
     calculate_totals as workout_totals,
 )
-from device_capabilities import assess_workout
+from device_capabilities import ProfileCompatibilityError, assess_workout
+from qz_xml_export import QzXmlExportError, export_workout
+
+
+def write_qz_xml(path, xml, *, overwrite):
+    """Publish a complete file, refusing races on a new destination."""
+    path = Path(path)
+    temporary = None
+    try:
+        with NamedTemporaryFile(dir=path.parent, delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(xml.encode("utf-8"))
+            stream.flush()
+            os.fsync(stream.fileno())
+        if overwrite:
+            os.replace(temporary, path)
+        else:
+            os.link(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def qz_preview(result):
+    distance_rows = [row for row in ET.fromstring(result.xml) if "distance" in row.attrib]
+    estimates = [row.attrib["duration"] for row in distance_rows if "duration" in row.attrib]
+    estimated_seconds = sum(
+        sum(int(part) * scale for part, scale in zip(value.split(":"), (3600, 60, 1)))
+        for value in estimates
+    )
+    lines = [
+        f"XML rows: {result.row_count}",
+        f"Timed segments: {result.timed_seconds} seconds",
+        f"Distance segments: {len(distance_rows)}",
+    ]
+    if distance_rows:
+        lines.append(
+            f"QZ preview estimates: {estimated_seconds} seconds across "
+            f"{len(estimates)} of {len(distance_rows)} distance rows."
+        )
+        lines.append("Distance determines when these segments end.")
+    lines.extend(f"{item.path}: {item.message}" for item in result.diagnostics)
+    return "\n".join(lines)
 
 
 class TreadmillApp:
@@ -377,6 +423,10 @@ class TreadmillApp:
             file_actions, text="Check Commercial LE", command=self.check_commercial_le
         ).pack(side="left", padx=5)
         
+        self.make_button(file_actions, text="Export to QZ XML",
+                         command=self.export_qz_xml).pack(side="left", padx=5)
+
+
         # WORKOUT POOL AND SEGMENT ACTIONS
         pool_content = ttk.Frame(table_frame)
         pool_content.pack(fill="both", expand=True)  
@@ -941,6 +991,38 @@ class TreadmillApp:
         show = messagebox.showerror if report.has_blockers else messagebox.showwarning
         show("Commercial LE compatibility", report.text())
         return report
+
+    def export_qz_xml(self):
+        title = "Export to QZ XML"
+        try:
+            result = export_workout({
+                "workout_name": self.workout_name.get(),
+                "blocks": self.blocks,
+            })
+        except (ProfileCompatibilityError, QzXmlExportError) as error:
+            messagebox.showerror(title, str(error), parent=self.root)
+            return
+        if not messagebox.askokcancel(title, qz_preview(result), parent=self.root):
+            return
+        destination = filedialog.asksaveasfilename(
+            title=title, parent=self.root, defaultextension=".xml",
+            filetypes=[("QZ XML files", "*.xml")], confirmoverwrite=False,
+        )
+        if not destination:
+            return
+        if Path(destination).suffix.lower() != ".xml":
+            messagebox.showerror(title, "Choose a filename ending in .xml.", parent=self.root)
+            return
+        overwrite = os.path.lexists(destination)
+        if overwrite and not messagebox.askyesno(
+            title, f"Replace the existing file?\n{destination}", parent=self.root,
+        ):
+            return
+        try:
+            write_qz_xml(destination, result.xml, overwrite=overwrite)
+        except OSError as error:
+            messagebox.showerror(title, str(error), parent=self.root)
+            return
 
     def save_workout(self):
         try:
