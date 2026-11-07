@@ -32,7 +32,11 @@ py -c "import json; from pathlib import Path; from qz_xml_export import export_w
 
 To export the example instead, replace `workout.json` in the command with `examples/3x3000mt.json`.
 
-Load `workout-qz.xml` in QZ as a training program. The exporter checks the Commercial LE profile and rejects incompatible workouts, such as segments with negative incline. The XML format has been checked against the QZ parser. Import on a real device and treadmill behavior still need verification.
+Load `workout-qz.xml` in QZ as a training program. The exporter checks the Commercial LE profile and rejects incompatible workouts, such as segments with negative incline.
+
+Distance-based segments retain their `distance` in kilometers as the end criterion. The exporter also adds an estimated `duration` for the QZ preview, calculated from the distance and target speed and rounded to the nearest second. For example, a 3 km repeat at 14 km/h has `distance="3"` and `duration="00:12:51"`. If the estimate falls outside QZ's duration range after rounding, the exporter keeps the distance and emits a warning.
+
+The example XML with both attributes was loaded and displayed in the QZ preview on a phone. Segment transitions and speed control on a connected treadmill remain to be verified.
 
 ## Run the tests
 
