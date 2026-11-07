@@ -17,7 +17,7 @@ The first command opens a Tkinter test window. Close it before launching the app
 
 1. Enter a **Workout name**.
 2. In **Add or Edit Segment**, choose a segment type and give it a name. Set it by **Time** (minutes) or **Distance** (km or m), then enter speed (km/h) and incline (%).
-3. Click **Add Standalone** to add a single segment. For repeated intervals, enter a block name and repetition count, click **Add Block**, select the block, and use **Add Segment** to add each interval or recovery.
+3. Use **Add Segment** to insert at the top level when nothing is selected, or immediately after a selected top-level segment. For repeated intervals, use **Add Block**, then select the block or one of its segments to add each interval or recovery to that block. Click a blank area of the workout list or press **Esc** to clear the selection and return to top-level insertion.
 4. Review the order under **Workout Structure**. Click **Save Workout** and save the file as `workout.json`. Use **Open Workout** to edit it later.
 
 Try the included [3 × 3000 m workout](examples/3x3000mt.json) with **Open Workout**.

@@ -381,17 +381,13 @@ class TreadmillApp:
         )
         self.add_segment_button.grid(row=1, column=7, padx=4)
 
-        self.make_button(
-            input_frame, text="Add Standalone", command=self.add_standalone_segment
-        ).grid(row=1, column=8, padx=4)
-
         self.update_segment_button = self.make_button(
             input_frame,
             text="Update Segment",
             command=self.update_segment,
             state="disabled",
         )
-        self.update_segment_button.grid(row=1, column=9, padx=4)
+        self.update_segment_button.grid(row=1, column=8, padx=4)
 
         self.summary = tk.StringVar()
         ttk.Label(
@@ -499,6 +495,7 @@ class TreadmillApp:
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
         self.tree.bind("<ButtonPress-1>", self.start_tree_drag, add="+")
         self.tree.bind("<ButtonRelease-1>", self.finish_tree_drag, add="+")
+        self.root.bind("<Escape>", self.clear_tree_selection, add="+")
 
     def _on_content_configure(self, event=None):
         self.page_canvas.configure(scrollregion=self.page_canvas.bbox("all"))
@@ -721,15 +718,6 @@ class TreadmillApp:
         self.refresh_tree()
         self.update_summary()
 
-    def add_standalone_segment(self):
-        segment = self.get_segment_values()
-        if segment is None:
-            return
-        self.blocks.append({"type": "segment", "segment": segment})
-        self.reset_segment_editor()
-        self.refresh_tree()
-        self.update_summary()
-
     def edit_segment(self):
         location = self.get_selected_segment_location()
         if location is None:
@@ -898,6 +886,17 @@ class TreadmillApp:
     def start_tree_drag(self, event):
         item = self.tree.identify_row(event.y)
         self.drag_source_item = item if item in self.tree_item_data else None
+        if not item and self.tree.identify_region(event.x, event.y) == "nothing":
+            return self.clear_tree_selection()
+
+    def clear_tree_selection(self, event=None):
+        self.drag_source_item = None
+        selection = self.tree.selection()
+        if selection:
+            self.tree.selection_remove(*selection)
+        self.tree.focus("")
+        self.on_tree_select()
+        return "break"
 
     def finish_tree_drag(self, event):
         source_iid = getattr(self, "drag_source_item", None)
@@ -954,7 +953,12 @@ class TreadmillApp:
 
     def on_tree_select(self, event=None):
         selection = self.tree.selection()
+        if (self.editing_segment is not None
+                and self.editing_segment != self.get_selected_segment_location()):
+            self.editing_segment = None
+            self.update_segment_button.config(state="disabled")
         if not selection:
+            self.reset_block_editor()
             return
         item = selection[0]
         parent = self.tree.parent(item)
