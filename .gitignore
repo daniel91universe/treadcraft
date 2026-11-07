@@ -1,0 +1,23 @@
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local environment settings
+.env
+.env.*
+!.env.example
+
+# Windows temporary files and local PowerShell cache
+Thumbs.db
+Desktop.ini
+*.tmp
+/Microsoft/Windows/PowerShell/ModuleAnalysisCache
+
+# Local workouts pending review
+/3x3000mt.json
+/Allenamento_test.json
