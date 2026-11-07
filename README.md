@@ -20,6 +20,8 @@ The first command opens a Tkinter test window. Close it before launching the app
 3. Click **Add Standalone** to add a single segment. For repeated intervals, enter a block name and repetition count, click **Add Block**, select the block, and use **Add Segment** to add each interval or recovery.
 4. Review the order under **Workout Structure**. Click **Save Workout** and save the file as `workout.json`. Use **Open Workout** to edit it later.
 
+Try the included [3 × 3000 m workout](examples/3x3000mt.json) with **Open Workout**.
+
 ## Export for QZ
 
 The XML exporter is available as a Python module. With `workout.json` in the project folder, run this in PowerShell:
@@ -27,6 +29,8 @@ The XML exporter is available as a Python module. With `workout.json` in the pro
 ```powershell
 py -c "import json; from pathlib import Path; from qz_xml_export import export_workout; result = export_workout(json.loads(Path('workout.json').read_bytes())); Path('workout-qz.xml').write_text(result.xml, encoding='utf-8')"
 ```
+
+To export the example instead, replace `workout.json` in the command with `examples/3x3000mt.json`.
 
 Load `workout-qz.xml` in QZ as a training program. The exporter checks the Commercial LE profile and rejects incompatible workouts, such as segments with negative incline. The XML format has been checked against the QZ parser. Import on a real device and treadmill behavior still need verification.
 
@@ -36,4 +40,4 @@ Load `workout-qz.xml` in QZ as a training program. The exporter checks the Comme
 py -B -m unittest
 ```
 
-The full suite expects the original local files `3x3000mt.json` and `Allenamento_test.json` in the project folder. They are ignored by Git and are absent from a fresh clone, so tests that read them will fail there.
+Run the command from the project folder. The example and the synthetic legacy fixture are included in the repository.

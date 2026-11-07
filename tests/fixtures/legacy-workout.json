@@ -1,0 +1,8 @@
+{
+  "workout_name": "Synthetic legacy workout",
+  "segments": [
+    {"name": "Warm-up", "duration_min": 10, "speed_kmh": 6, "incline_percent": 0},
+    {"name": "Run", "duration_min": 5, "speed_kmh": 10, "incline_percent": 1},
+    {"name": "Cool-down", "duration_min": 5, "speed_kmh": 5, "incline_percent": 0}
+  ]
+}
