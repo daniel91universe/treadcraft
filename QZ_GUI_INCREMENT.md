@@ -18,6 +18,6 @@ Verifica manuale su Windows eseguita dall'utente con il campione 3×3000 m. L'an
 
 Il branch feature/qz-export-ui parte da 08bec8d. Il commit che contiene questo report raccoglie la modifica proposta per la pull request verso main. Il merge è soggetto ad autorizzazione separata.
 
-Il prossimo passo di verifica è importare dalla GUI un allenamento misto nella build QZ Android effettiva e controllare separatamente anteprima e transizioni sul tapis quando disponibile.
+L'utente ha aperto in QZ Android l'XML del 3×3000 m esportato da TreadCraft e ha confermato che l'anteprima era corretta. La prova si è svolta senza un tapis roulant collegato. Le transizioni tra segmenti e il controllo della velocità restano da verificare quando il tapis sarà disponibile.
 
 Il commit di implementazione è f573d88. La [pull request #7](https://github.com/daniel91universe/treadcraft/pull/7) è aperta in bozza verso main.
