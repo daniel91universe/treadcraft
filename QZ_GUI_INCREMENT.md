@@ -12,7 +12,9 @@ Il salvataggio accetta percorsi XML e chiede conferma per una destinazione esist
 | test_qz_gui.py | Otto test su callback e scrittura |
 | QZ_GUI_INCREMENT.md | Resoconto dell'incremento |
 
-Tutti i 61 test sono passati con Python 3.15 e il comando python -B -m unittest. I mock coprono l'annullamento, il rifiuto della discesa, la conferma di sostituzione e gli errori di accesso. Le prove su file temporanei controllano contenuto XML, integrità del JSON, ripetute a distanza e conflitto con una creazione concorrente. La verifica visiva della GUI Windows e le prove sul tapis restano aperte.
+Tutti i 61 test sono passati con Python 3.15 e il comando python -B -m unittest. I mock coprono l'annullamento, il rifiuto della discesa, la conferma di sostituzione e gli errori di accesso. Le prove su file temporanei controllano contenuto XML, integrità del JSON, ripetute a distanza e conflitto con una creazione concorrente. Le prove sul tapis restano aperte.
+
+Verifica manuale su Windows eseguita dall'utente con il campione 3×3000 m. L'anteprima era corretta. L'annullamento ha funzionato sia nell'anteprima sia nella finestra di scelta della destinazione. Il file XML salvato conteneva le 8 righe attese.
 
 Il branch feature/qz-export-ui parte da 08bec8d. Il commit che contiene questo report raccoglie la modifica proposta per la pull request verso main. Il merge è soggetto ad autorizzazione separata.
 
