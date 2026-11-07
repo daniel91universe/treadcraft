@@ -1,0 +1,61 @@
+{
+    "format_version": 4,
+    "workout_name": "My Running Workout",
+    "blocks": [
+        {
+            "type": "segment",
+            "segment": {
+                "name": "Warm-up",
+                "measure_mode": "Time",
+                "measure_value": 10.0,
+                "distance_unit": "km",
+                "duration_min": 10.0,
+                "speed_kmh": 10.0,
+                "incline_percent": 1.0,
+                "estimated_distance_km": 1.6667
+            }
+        },
+        {
+            "name": "3x3000mt",
+            "repetitions": 3,
+            "type": "block",
+            "segments": [
+                {
+                    "name": "Threshold",
+                    "measure_mode": "Distance",
+                    "measure_value": 3.0,
+                    "distance_unit": "km",
+                    "duration_min": 12.8571,
+                    "speed_kmh": 14.0,
+                    "incline_percent": 1.0,
+                    "estimated_distance_km": 3.0
+                },
+                {
+                    "name": "Recovery",
+                    "measure_mode": "Time",
+                    "measure_value": 3.0,
+                    "distance_unit": "km",
+                    "duration_min": 3.0,
+                    "speed_kmh": 10.0,
+                    "incline_percent": 1.0,
+                    "estimated_distance_km": 0.5
+                }
+            ]
+        },
+        {
+            "type": "segment",
+            "segment": {
+                "name": "Cool-down",
+                "measure_mode": "Time",
+                "measure_value": 5.0,
+                "distance_unit": "km",
+                "duration_min": 5.0,
+                "speed_kmh": 10.0,
+                "incline_percent": 1.0,
+                "estimated_distance_km": 0.8333
+            }
+        }
+    ],
+    "total_duration_min": 62.5713,
+    "estimated_distance_km": 13.0
+}
