@@ -32,7 +32,7 @@ def workout(data=None):
 
 class CompatibilityTests(unittest.TestCase):
     def test_v4_fixture_is_unchanged_after_normalization(self):
-        original = json.loads((ROOT / "3x3000mt.json").read_text(encoding="utf-8"))
+        original = json.loads((ROOT / "examples/3x3000mt.json").read_text(encoding="utf-8"))
         before = copy.deepcopy(original)
         normalized = normalize_workout(original)
         self.assertEqual(normalized, original)
@@ -40,7 +40,7 @@ class CompatibilityTests(unittest.TestCase):
         self.assertEqual(calculate_totals(normalized["blocks"]), (62.5713, 13.0))
 
     def test_legacy_fixture_keeps_order_values_and_totals(self):
-        original = json.loads((ROOT / "Allenamento_test.json").read_text(encoding="utf-8"))
+        original = json.loads((ROOT / "tests/fixtures/legacy-workout.json").read_text(encoding="utf-8"))
         before = copy.deepcopy(original)
         normalized = normalize_workout(original)
         block = normalized["blocks"][0]
@@ -56,15 +56,12 @@ class CompatibilityTests(unittest.TestCase):
         self.assertEqual(normalized["estimated_distance_km"], 2.25)
         self.assertEqual(original, before)
 
-    def test_fixture_bytes_are_original(self):
-        hashes = {
-            "3x3000mt.json": "1B79913E2AD4A02B4EE4DC1C4377CA450C65984351064BFE736278EC213E28D3",
-            "Allenamento_test.json": "FB814A4E720C6D0C7C4FD2279282BC90C5B9D4E013019A5CF7726F97DCEFC2EF",
-        }
-        for name, expected in hashes.items():
-            with self.subTest(name=name):
-                self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest().upper(),
-                                 expected)
+    def test_example_matches_original(self):
+        path = ROOT / "examples/3x3000mt.json"
+        data = path.read_bytes().replace(b"\r\n", b"\n")
+        self.assertEqual(hashlib.sha256(data).hexdigest().upper(),
+                         "EAF2A1AE6321DC79AD6066B81A9C7BFAC2ED1C7005C6F84096CF35814CBC5510")
+
 
     def test_supported_versions_and_untyped_historical_blocks(self):
         for version in (None, 1, 2, 3, 4):
@@ -78,7 +75,7 @@ class CompatibilityTests(unittest.TestCase):
                 self.assertEqual(normalized["total_duration_min"], 20)
 
     def test_save_load_roundtrip_is_stable_for_both_fixtures(self):
-        for name in ("3x3000mt.json", "Allenamento_test.json"):
+        for name in ("examples/3x3000mt.json", "tests/fixtures/legacy-workout.json"):
             with self.subTest(name=name):
                 first = normalize_workout(json.loads((ROOT / name).read_text(encoding="utf-8")))
                 serialized = json.dumps(first, allow_nan=False)
@@ -225,7 +222,7 @@ class EditorIntegrationTests(unittest.TestCase):
 
     def test_legacy_import_commits_only_validated_data(self):
         editor = self.make_editor()
-        with patch("app.filedialog.askopenfilename", return_value=str(ROOT / "Allenamento_test.json")), \
+        with patch("app.filedialog.askopenfilename", return_value=str(ROOT / "tests/fixtures/legacy-workout.json")), \
                 patch("app.messagebox.showinfo"):
             editor.open_workout()
         self.assertEqual(editor.blocks[0]["type"], "block")

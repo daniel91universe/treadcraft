@@ -57,7 +57,7 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(result.timed_seconds, 1800)
 
     def test_original_3x3000(self):
-        path = ROOT / "3x3000mt.json"
+        path = ROOT / "examples/3x3000mt.json"
         original = path.read_bytes()
         data = json.loads(original)
         before = copy.deepcopy(data)
@@ -70,7 +70,7 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(path.read_bytes(), original)
 
     def test_legacy_fixture(self):
-        result = export_workout(json.loads((ROOT / "Allenamento_test.json").read_bytes()))
+        result = export_workout(json.loads((ROOT / "tests/fixtures/legacy-workout.json").read_bytes()))
         self.assertEqual([r.get("speed") for r in self.rows(result)], ["6", "10", "5"])
         self.assertEqual(result.timed_seconds, 1200)
 

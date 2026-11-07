@@ -124,7 +124,7 @@ class ProfileTests(unittest.TestCase):
         self.assertIn("to 7 km/h", report.text())
 
     def test_existing_json_files_check_without_mutation(self):
-        for name in ("3x3000mt.json", "Allenamento_test.json"):
+        for name in ("examples/3x3000mt.json", "tests/fixtures/legacy-workout.json"):
             path = ROOT / name
             before = path.read_bytes()
             data = json.loads(before)
