@@ -33,6 +33,14 @@ def write_qz_xml(path, xml, *, overwrite):
             temporary.unlink(missing_ok=True)
 
 
+def format_qz_duration(total_seconds):
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours:
+        return f"{hours}h {minutes:02}m {seconds:02}s"
+    return f"{minutes}m {seconds:02}s"
+
+
 def qz_preview(result):
     distance_rows = [row for row in ET.fromstring(result.xml) if "distance" in row.attrib]
     estimates = [row.attrib["duration"] for row in distance_rows if "duration" in row.attrib]
@@ -40,19 +48,29 @@ def qz_preview(result):
         sum(int(part) * scale for part, scale in zip(value.split(":"), (3600, 60, 1)))
         for value in estimates
     )
-    lines = [
+    summary = [
         f"XML rows: {result.row_count}",
-        f"Timed segments: {result.timed_seconds} seconds",
+        f"Timed segments: {result.row_count - len(distance_rows)}"
+        f"  •  Scheduled duration: {format_qz_duration(result.timed_seconds)}",
         f"Distance segments: {len(distance_rows)}",
     ]
-    if distance_rows:
-        lines.append(
-            f"QZ preview estimates: {estimated_seconds} seconds across "
-            f"{len(estimates)} of {len(distance_rows)} distance rows."
+    details = {"Blocking errors": [], "Warnings": [], "Information": []}
+    if estimates:
+        summary.append(
+            f"Estimated duration: {format_qz_duration(estimated_seconds)}"
+            f" for {len(estimates)} of {len(distance_rows)} distance segments"
         )
-        lines.append("Distance determines when these segments end.")
-    lines.extend(f"{item.path}: {item.message}" for item in result.diagnostics)
-    return "\n".join(lines)
+    elif distance_rows:
+        summary.append("Estimated duration: unavailable")
+    if distance_rows:
+        details["Information"].append(
+            "Distance determines when these segments end. Times are estimates."
+        )
+    groups = {"error": "Blocking errors", "warning": "Warnings"}
+    for item in result.diagnostics:
+        message = f"{item.path}: {item.message}" if item.path else item.message
+        details[groups.get(item.severity, "Information")].append(message)
+    return summary, details
 
 
 class TreadmillApp:
@@ -1066,6 +1084,65 @@ class TreadmillApp:
         show("Commercial LE compatibility", report.text())
         return report
 
+    def confirm_qz_preview(self, title, result):
+        summary, details = qz_preview(result)
+        dialog = tk.Toplevel(self.root)
+        dialog.title(title)
+        dialog.transient(self.root)
+        dialog.minsize(520, 360)
+        panel = ttk.Frame(dialog, padding=16)
+        panel.pack(fill="both", expand=True)
+        blocked = bool(details["Blocking errors"])
+        if blocked:
+            status = "Export blocked"
+        elif details["Warnings"]:
+            status = "Ready to export with warnings"
+        else:
+            status = "Ready to export"
+        ttk.Label(panel, text=status, font=("Segoe UI", 12, "bold")).pack(anchor="w")
+        for line in summary:
+            ttk.Label(panel, text=line).pack(anchor="w", pady=(3, 0))
+
+        buttons = ttk.Frame(panel)
+        buttons.pack(side="bottom", fill="x", pady=(10, 0))
+        confirmed = False
+
+        def confirm():
+            nonlocal confirmed
+            confirmed = True
+            dialog.destroy()
+
+        ttk.Button(buttons, text="Export", command=confirm,
+                   state="disabled" if blocked else "normal").pack(side="right")
+        cancel = ttk.Button(buttons, text="Cancel", command=dialog.destroy)
+        cancel.pack(side="right", padx=(0, 8))
+
+        diagnostics = ttk.Frame(panel)
+        diagnostics.pack(fill="both", expand=True, pady=(12, 0))
+        scrollbar = ttk.Scrollbar(diagnostics)
+        scrollbar.pack(side="right", fill="y")
+        messages = tk.Text(
+            diagnostics, wrap="word", width=64, height=9, padx=8, pady=6,
+            bg=self.colors["input"], fg=self.colors["foreground"],
+            yscrollcommand=scrollbar.set,
+        )
+        scrollbar.config(command=messages.yview)
+        messages.pack(fill="both", expand=True)
+        messages.tag_configure("heading", font=("Segoe UI", 10, "bold"))
+        for heading, items in details.items():
+            if items:
+                messages.insert("end", f"{heading}\n", "heading")
+                messages.insert("end", "\n\n".join(items) + "\n\n")
+        if not any(details.values()):
+            messages.insert("end", "No diagnostics.")
+        messages.config(state="disabled")
+        dialog.bind("<Escape>", lambda event: (dialog.destroy(), "break")[1])
+        dialog.wait_visibility()
+        dialog.grab_set()
+        cancel.focus_set()
+        dialog.wait_window()
+        return confirmed
+
     def export_qz_xml(self):
         title = "Export to QZ XML"
         try:
@@ -1076,7 +1153,7 @@ class TreadmillApp:
         except (ProfileCompatibilityError, QzXmlExportError) as error:
             messagebox.showerror(title, str(error), parent=self.root)
             return
-        if not messagebox.askokcancel(title, qz_preview(result), parent=self.root):
+        if not self.confirm_qz_preview(title, result):
             return
         destination = filedialog.asksaveasfilename(
             title=title, parent=self.root, defaultextension=".xml",

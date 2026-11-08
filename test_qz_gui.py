@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import Mock, patch
 import xml.etree.ElementTree as ET
 
-from app import TreadmillApp, write_qz_xml
+from app import TreadmillApp, qz_preview, write_qz_xml
 from qz_xml_export import export_workout
 
 
@@ -24,7 +24,7 @@ class ExportGuiTests(unittest.TestCase):
         self.path = Path(folder) / "workout.xml"
         self.dialog = self.enterContext(patch("app.filedialog.asksaveasfilename",
                                               return_value=str(self.path)))
-        self.preview = self.enterContext(patch("app.messagebox.askokcancel", return_value=True))
+        self.preview = self.app.confirm_qz_preview = Mock(return_value=True)
         self.confirm = self.enterContext(patch("app.messagebox.askyesno", return_value=False))
         self.error = self.enterContext(patch("app.messagebox.showerror"))
 
@@ -33,14 +33,20 @@ class ExportGuiTests(unittest.TestCase):
         expected = export_workout(self.workout)
         self.assertEqual(self.path.read_bytes(), expected.xml.encode("utf-8"))
         rows = ET.parse(self.path).getroot()
+        self.assertEqual(len(rows), 8)
         self.assertEqual([(r.get("distance"), r.get("duration")) for r in rows if r.get("distance")],
                          [("3", "00:12:51")] * 3)
-        preview = self.preview.call_args.args[1]
-        for value in ("XML rows: 8", "Timed segments: 1440 seconds", "Distance segments: 3",
-                      "2313 seconds", "hardware behavior"):
-            self.assertIn(value, preview)
         self.assertEqual(self.app.blocks, self.workout["blocks"])
         self.assertEqual(self.workout_path.read_bytes(), self.original)
+
+    def test_preview_separates_summary_estimates_and_diagnostics(self):
+        summary, details = qz_preview(export_workout(self.workout))
+        for value in ("XML rows: 8", "Timed segments: 5", "24m 00s",
+                      "Distance segments: 3", "38m 33s", "3 of 3"):
+            self.assertIn(value, "\n".join(summary))
+        self.assertFalse(details["Blocking errors"])
+        self.assertIn("hardware behavior", "\n".join(details["Warnings"]))
+        self.assertIn("estimates", "\n".join(details["Information"]))
 
     def test_cancel_preview(self):
         self.preview.return_value = False
