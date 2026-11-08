@@ -494,6 +494,7 @@ class TreadmillApp:
         scrollbar.pack(side="right", fill="y")
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
         self.tree.bind("<ButtonPress-1>", self.start_tree_drag, add="+")
+        self.tree.bind("<B1-Motion>", self.show_tree_drag_preview, add="+")
         self.tree.bind("<ButtonRelease-1>", self.finish_tree_drag, add="+")
         self.root.bind("<Escape>", self.clear_tree_selection, add="+")
 
@@ -886,10 +887,67 @@ class TreadmillApp:
     def start_tree_drag(self, event):
         item = self.tree.identify_row(event.y)
         self.drag_source_item = item if item in self.tree_item_data else None
+        self.drag_start = (event.x, event.y)
+        self.drag_original_position = None
         if not item and self.tree.identify_region(event.x, event.y) == "nothing":
             return self.clear_tree_selection()
 
+    def show_tree_drag_preview(self, event):
+        iid = getattr(self, "drag_source_item", None)
+        source = self.tree_item_data.get(iid)
+        if not source or source["kind"] != "segment":
+            return
+        start_x, start_y = self.drag_start
+        if self.drag_original_position is None:
+            if max(abs(event.x - start_x), abs(event.y - start_y)) < 5:
+                return
+        target_iid = self.tree.identify_row(event.y)
+        if target_iid == iid or self.tree.identify_region(event.x, event.y) in (
+            "heading", "separator"
+        ):
+            return
+
+        if self.drag_original_position is None:
+            self.drag_original_position = (self.tree.parent(iid), self.tree.index(iid))
+
+        target = self.tree_item_data.get(target_iid)
+        box = self.tree.bbox(target_iid) if target else None
+        above_block = self.is_drop_above_source_block(source, target, box, event.y)
+        after = bool(box and event.y > box[1] + box[3] / 2)
+        if target is None:
+            parent, index = "", "end"
+        elif above_block:
+            parent, index = "", self.tree.index(target_iid)
+            if self.tree.parent(iid) == parent and self.tree.index(iid) < index:
+                index -= 1
+        elif target["kind"] == "block":
+            self.tree.item(target_iid, open=True)
+            parent, index = target_iid, "end"
+        else:
+            parent = self.tree.parent(target_iid)
+            index = self.tree.index(target_iid) + int(after)
+            if self.tree.parent(iid) == parent and self.tree.index(iid) < index:
+                index -= 1
+
+        self.tree.move(iid, parent, index)
+        self.drag_destination = (target_iid, after, above_block)
+
+    def is_drop_above_source_block(self, source, target, box, y):
+        return (
+            target is not None
+            and target["kind"] == "block"
+            and target["block"] is source["parent_block"]
+            and bool(box and y < box[1] + box[3] / 2)
+        )
+
+    def restore_tree_drag_position(self, iid):
+        position = getattr(self, "drag_original_position", None)
+        if position is not None:
+            self.tree.move(iid, *position)
+            self.drag_original_position = None
+
     def clear_tree_selection(self, event=None):
+        self.restore_tree_drag_position(getattr(self, "drag_source_item", None))
         self.drag_source_item = None
         selection = self.tree.selection()
         if selection:
@@ -900,6 +958,9 @@ class TreadmillApp:
 
     def finish_tree_drag(self, event):
         source_iid = getattr(self, "drag_source_item", None)
+        destination = (self.drag_destination
+                       if getattr(self, "drag_original_position", None) is not None else None)
+        self.restore_tree_drag_position(source_iid)
         self.drag_source_item = None
         if not source_iid or source_iid not in self.tree_item_data:
             return
@@ -908,8 +969,16 @@ class TreadmillApp:
         if source["kind"] != "segment":
             return  # Blocks retain their dedicated Move Block controls.
 
-        target_iid = self.tree.identify_row(event.y)
-        target = self.tree_item_data.get(target_iid) if target_iid else None
+        if destination is None:
+            target_iid = self.tree.identify_row(event.y)
+            box = self.tree.bbox(target_iid) if target_iid else None
+            after = bool(box and event.y > box[1] + box[3] / 2)
+            above_block = self.is_drop_above_source_block(
+                source, self.tree_item_data.get(target_iid), box, event.y
+            )
+        else:
+            target_iid, after, above_block = destination
+        target = self.tree_item_data.get(target_iid)
         if target_iid == source_iid:
             return
 
@@ -926,6 +995,9 @@ class TreadmillApp:
         if target is None:
             # Dropping in the empty area converts/moves it to a standalone item.
             self.blocks.append({"type": "segment", "segment": segment})
+        elif above_block:
+            index = next(i for i, entry in enumerate(self.blocks) if entry is target["block"])
+            self.blocks.insert(index, {"type": "segment", "segment": segment})
         elif target["kind"] == "block":
             target["block"]["segments"].append(segment)
         else:
@@ -934,15 +1006,13 @@ class TreadmillApp:
             if target_block is not None:
                 siblings = target_block["segments"]
                 index = siblings.index(target_segment)
-                box = self.tree.bbox(target_iid)
-                if box and event.y > box[1] + box[3] / 2:
+                if after:
                     index += 1
                 siblings.insert(index, segment)
             else:
                 target_wrapper = target["wrapper"]
                 index = self.blocks.index(target_wrapper)
-                box = self.tree.bbox(target_iid)
-                if box and event.y > box[1] + box[3] / 2:
+                if after:
                     index += 1
                 self.blocks.insert(index, {"type": "segment", "segment": segment})
 
