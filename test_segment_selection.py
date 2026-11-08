@@ -95,6 +95,24 @@ class SegmentSelectionTests(unittest.TestCase):
         self.assertEqual(self.block["segments"], [])
         self.assertEqual(self.app.blocks[-1], {"type": "segment", "segment": self.inner})
 
+    def test_drag_to_upper_half_of_own_block_moves_original_row_above_block(self):
+        tree = self.app.tree
+        self.app.tree_item_data["block"] = {"kind": "block", "block": self.block}
+        tree.identify_row.side_effect = ["inner", "block"]
+        tree.identify_region.return_value = "tree"
+        tree.bbox.return_value = (0, 20, 200, 20)
+
+        self.app.start_tree_drag(SimpleNamespace(x=20, y=45))
+        self.app.show_tree_drag_preview(SimpleNamespace(x=20, y=22))
+        tree.move.assert_called_once_with("inner", "", 1)
+        self.assertEqual(self.block["segments"], [self.inner])
+
+        self.app.finish_tree_drag(SimpleNamespace(x=20, y=22))
+        self.assertEqual(self.block["segments"], [])
+        self.assertEqual(self.app.blocks, [
+            self.outside, {"type": "segment", "segment": self.inner}, self.block,
+        ])
+
     def test_selecting_another_row_invalidates_edit_without_resetting_form(self):
         self.app.editing_segment = ("block", 1, 0)
         self.selected = ("outside",)
