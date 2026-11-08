@@ -16,8 +16,14 @@ Tutti i 61 test sono passati con Python 3.15 e il comando python -B -m unittest.
 
 Verifica manuale su Windows eseguita dall'utente con il campione 3×3000 m. L'anteprima era corretta. L'annullamento ha funzionato sia nell'anteprima sia nella finestra di scelta della destinazione. Il file XML salvato conteneva le 8 righe attese.
 
-Il branch feature/qz-export-ui parte da 08bec8d. Il commit che contiene questo report raccoglie la modifica proposta per la pull request verso main. Il merge è soggetto ad autorizzazione separata.
+Il commit di implementazione è `f573d88`. L'integrazione è stata unita in `main` con la [pull request #7](https://github.com/daniel91universe/treadcraft/pull/7).
 
-L'utente ha aperto in QZ Android l'XML del 3×3000 m esportato da TreadCraft e ha confermato che l'anteprima era corretta. La prova si è svolta senza un tapis roulant collegato. Le transizioni tra segmenti e il controllo della velocità restano da verificare quando il tapis sarà disponibile.
+L'utente ha aperto in QZ Android l'XML del 3×3000 m esportato da TreadCraft e ha confermato che l'anteprima era corretta. La prova si è svolta senza un tapis roulant collegato.
 
-Il commit di implementazione è f573d88. La [pull request #7](https://github.com/daniel91universe/treadcraft/pull/7) è aperta in bozza verso main.
+Nella prova finale su Windows con il 3×3000 m, l'utente ha confermato che un segmento trascinato fuori dal blocco può essere collocato sia sopra sia sotto e che l'XML QZ del 3×3000 m originale contiene ancora le 8 righe attese. Sullo stesso commit di merge, `0cb20ad`, sono passati tutti i 71 test automatici. [Pull request #9](https://github.com/daniel91universe/treadcraft/pull/9)
+
+## Prove QZ con il tapis roulant collegato
+
+- Verificare che QZ Android si connetta al Commercial LE e legga la velocità effettiva.
+- Avviare il 3×3000 m esportato e verificare le transizioni. Controllare che le ripetute terminino al raggiungimento dei 3 km e che il riscaldamento, i recuperi e il defaticamento terminino allo scadere delle rispettive durate.
+- Alle transizioni, confrontare la velocità richiesta da QZ con quella effettiva del tapis. Verificare il passaggio da 10 a 14 km/h all'inizio delle ripetute e il ritorno a 10 km/h per i recuperi.
