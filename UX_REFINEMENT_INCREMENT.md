@@ -9,6 +9,8 @@ L'anteprima precedente accorpava riepilogo e diagnostica nello stesso messaggio.
 
 La suite completa con Python 3.15 ha superato 72 test. Su Windows, una prova automatizzata con Tkinter e Python 3.12 ha azionato i pulsanti Cancel ed Export del dialogo reale con il 3×3000 m. La scelta del percorso era simulata. Il file temporaneo conteneva otto righe XML e il JSON sorgente è rimasto identico.
 
-Restano la verifica visiva del dialogo, la prova manuale del selettore di file e il riordinamento manuale dentro e fuori dai blocchi. Per una futura `v0.1.0`, questi controlli completano la verifica su Windows. Le prove QZ con il tapis roulant restano aperte e sono documentate nel report dell'incremento 4.
+Nella prova manuale su Windows con il 3×3000 m, l'utente ha confermato che la nuova anteprima è corretta, che l'annullamento funziona sia nell'anteprima sia nel selettore di file e che l'XML salvato contiene le otto righe attese. Ha verificato anche il riordinamento dei segmenti dentro e fuori dal blocco.
+
+La prova manuale completa i controlli Windows previsti per questo incremento in vista della futura `v0.1.0`. Le prove QZ con il tapis roulant restano aperte e sono documentate nel report dell'incremento 4.
 
 Il commit di implementazione è `7f9c7f8` sul branch `feature/ux-refinement`. [PR #10 in bozza verso main](https://github.com/daniel91universe/treadcraft/pull/10)
