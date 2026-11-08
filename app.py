@@ -76,7 +76,7 @@ def qz_preview(result):
 class TreadmillApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Treadmill Workout Planner")
+        self.root.title("TreadCraft")
         self.root.geometry("1180x820")
         self.root.minsize(900, 600)
         self.configure_styles()
@@ -247,7 +247,7 @@ class TreadmillApp:
 
         ttk.Label(
             self.content_frame,
-            text="Treadmill Workout Planner",
+            text="TreadCraft",
             font=("Segoe UI", 20, "bold"),
         ).pack(pady=(15, 3))
 
