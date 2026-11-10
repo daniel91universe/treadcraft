@@ -1,6 +1,12 @@
 # Changelog
 
-## v0.2.0 (unreleased)
+## v0.3.0 (unreleased)
+
+- Added a portable Windows x64 ZIP with the Python and Tcl/Tk runtime, branding assets, and the 3 × 3000 m sample. Extract the complete folder and run TreadCraft without installing Python.
+- Compacted the Speed and Incline fields, aligned the segment type selector, and placed the block name and repetition count on one line in **Workout Blocks**.
+- **Save Workout** suggests a JSON filename based on the workout title. When a loaded workout has a blank, missing, or default title, the editor shows the filename without its extension.
+
+## v0.2.0
 
 - Applied Brand v1.0, with a dark palette, a clearer header logo, Windows icons, and distinct button and focus styles.
 - Moved the main commands and totals above the workspace. Placed the workout table on the left and the segment and block editors on the right.

@@ -8,7 +8,18 @@ The v0.2.0 redesign adds the TreadCraft branding and a compact layout. The main 
 
 See the [changelog](CHANGELOG.md) and the [v0.2.0 release notes](RELEASE_NOTES_v0.2.0.md).
 
-## Run on Windows
+## Run on Windows from the portable ZIP
+
+The v0.3.0 portable package is for **Windows x64**. It includes Python and Tkinter and requires no installer.
+
+1. On the [GitHub Releases page](https://github.com/daniel91universe/treadcraft/releases), select the v0.3.0 **Windows x64 portable ZIP** when available. GitHub's **Source code (zip)** is for the Python launch instructions below.
+2. In File Explorer, right-click the portable ZIP and choose **Extract All**.
+3. Open the extracted `TreadCraft` folder and double-click `TreadCraft.exe`. Keep the `_internal` folder beside the executable.
+4. To try the app, open `examples\3x3000mt.json` with **Open Workout**. Save your workouts and exports to a folder you can write to, such as Documents.
+
+To verify the download, run `Get-FileHash -Algorithm SHA256 -LiteralPath '<path-to-portable-zip>'` in PowerShell and compare the result with the SHA-256 published alongside the ZIP. The executable is unsigned, so Windows may show a SmartScreen warning. Keep Windows protections enabled and use the archive from the official releases page. [Microsoft SmartScreen guidance](https://support.microsoft.com/en-au/windows/security/windows-security/app-browser-control-in-the-windows-security-app)
+
+## Run on Windows from source
 
 Use Python 3.12 with Tkinter, the configuration tested on Windows. In the Python installer, keep the Tcl/Tk option enabled. Download the repository source as a ZIP and extract it, or clone the repository. Open PowerShell in the folder containing `app.py` and run:
 
