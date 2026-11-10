@@ -430,7 +430,7 @@ class TreadmillApp:
         editor = self.editor_panel = ttk.Frame(self.content_frame)
         # BLOCK EDITOR
         block_frame = ttk.LabelFrame(
-            editor, text="Workout Blocks (Optional)", padding=10
+            editor, text="Workout Blocks", padding=10
         )
         block_frame.pack(fill="x", pady=(0, 8))
 
@@ -508,7 +508,7 @@ class TreadmillApp:
         )
         self.segment_name = tk.StringVar(value="Warm-up")
         ttk.Entry(
-            input_frame, textvariable=self.segment_name, width=17
+            input_frame, textvariable=self.segment_name, width=15
         ).grid(row=1, column=1, padx=5, pady=5)
 
         ttk.Label(input_frame, text="Set by:").grid(
@@ -534,16 +534,16 @@ class TreadmillApp:
         self.measure_entry.grid(row=3, column=1, padx=5, pady=5, sticky="w")
 
         self.distance_unit = tk.StringVar(value="km")
-        self.distance_unit_label = ttk.Label(input_frame, text="Distance unit:")
-        self.distance_unit_label.grid(row=2, column=2, padx=5, sticky="w")
+        self.distance_unit_label = ttk.Label(input_frame, text="Unit:")
+        self.distance_unit_label.grid(row=2, column=2, padx=3, sticky="w")
         self.distance_unit_menu = ttk.Combobox(
             input_frame,
             textvariable=self.distance_unit,
             values=("km", "m"),
             state="readonly",
-            width=6,
+            width=3,
         )
-        self.distance_unit_menu.grid(row=3, column=2, padx=5, pady=5, sticky="w")
+        self.distance_unit_menu.grid(row=3, column=2, padx=3, pady=5, sticky="w")
         self.distance_unit_label.grid_remove()
         self.distance_unit_menu.grid_remove()
 
@@ -551,7 +551,7 @@ class TreadmillApp:
             row=0, column=3, padx=5, sticky="w"
         )
         self.speed = tk.StringVar(value="6")
-        ttk.Entry(input_frame, textvariable=self.speed, width=10).grid(
+        ttk.Entry(input_frame, textvariable=self.speed, width=7).grid(
             row=1, column=3, padx=5, pady=5, sticky="w"
         )
 
@@ -559,7 +559,7 @@ class TreadmillApp:
             row=2, column=3, padx=5, sticky="w"
         )
         self.incline = tk.StringVar(value="1")
-        ttk.Entry(input_frame, textvariable=self.incline, width=8).grid(
+        ttk.Entry(input_frame, textvariable=self.incline, width=7).grid(
             row=3, column=3, padx=5, pady=5, sticky="w"
         )
 
@@ -587,7 +587,7 @@ class TreadmillApp:
     def _set_workspace_min_width(self):
         # Reserve room for the distance controls even when Time is selected.
         unit_width = max(self.distance_unit_label.winfo_reqwidth(),
-                         self.distance_unit_menu.winfo_reqwidth()) + 10
+                         self.distance_unit_menu.winfo_reqwidth()) + 6
         self.measure_entry.master.columnconfigure(2, minsize=unit_width)
         self.root.update_idletasks()
         # Include the workspace scrollbar and the table's frame and scrollbar.
