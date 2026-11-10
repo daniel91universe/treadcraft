@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+from tkinter import font as tkfont
 import json
 import copy
 import os
@@ -82,7 +83,6 @@ class TreadmillApp:
     def __init__(self, root):
         self.root = root
         self.root.title("TreadCraft")
-        self.root.geometry("1180x820")
         self.root.minsize(900, 600)
         self.configure_styles()
 
@@ -397,16 +397,19 @@ class TreadmillApp:
         )
 
         self.tree.heading("#0", text="Block / Segment")
-        self.tree.heading("duration", text="Duration (min)")
-        self.tree.heading("speed", text="Speed (km/h)")
-        self.tree.heading("incline", text="Incline (%)")
-        self.tree.heading("distance", text="Distance (km)")
-
-        self.tree.column("#0", width=215)
-        self.tree.column("duration", width=108, anchor="e")
-        self.tree.column("speed", width=108, anchor="e")
-        self.tree.column("incline", width=90, anchor="e")
-        self.tree.column("distance", width=108, anchor="e")
+        headings = {
+            "duration": "Time (min)", "speed": "Speed km/h",
+            "incline": "Incline %", "distance": "Dist. (km)",
+        }
+        heading_font = tkfont.Font(root=self.root, family=UI_FONT, size=9, weight="bold")
+        name_width = heading_font.measure("Block / Segment") + 18
+        self.tree.column("#0", width=name_width, minwidth=name_width)
+        self.tree_min_width = name_width
+        for column, label in headings.items():
+            width = heading_font.measure(label) + 18
+            self.tree.heading(column, text=label)
+            self.tree.column(column, width=width, minwidth=width, anchor="e", stretch=False)
+            self.tree_min_width += width
 
         scrollbar = ttk.Scrollbar(
             tree_frame, orient="vertical", command=self.tree.yview
@@ -579,6 +582,18 @@ class TreadmillApp:
         self.content_frame.columnconfigure(0, weight=1)
         self.structure_panel.grid(row=0, column=0, sticky="nsew", padx=12, pady=4)
         editor.grid(row=0, column=1, sticky="new", padx=(0, 12), pady=4)
+        self.root.after_idle(self._set_workspace_min_width)
+
+    def _set_workspace_min_width(self):
+        # Reserve room for the distance controls even when Time is selected.
+        unit_width = max(self.distance_unit_label.winfo_reqwidth(),
+                         self.distance_unit_menu.winfo_reqwidth()) + 10
+        self.measure_entry.master.columnconfigure(2, minsize=unit_width)
+        self.root.update_idletasks()
+        # Include the workspace scrollbar and the table's frame and scrollbar.
+        width = max(900, self.editor_panel.winfo_reqwidth() + self.tree_min_width + 108)
+        self.root.minsize(width, 600)
+        self.root.geometry(f"{width}x600")
 
     def _wrap_segment_actions(self, width, buttons):
         stacked = sum(button.winfo_reqwidth() + 6 for button in buttons) > width
