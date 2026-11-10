@@ -268,13 +268,59 @@ class TreadmillApp:
     # --------------------------------------------------
 
     def create_interface(self):
-        # Scrollable page: controls remain accessible on shorter displays.
+        header = ttk.Frame(self.root, padding=(12, 6))
+        header.pack(fill="x")
+        self.brand_logo = self.load_brand()
+        brand = ttk.Label(header, text="TreadCraft", font=(UI_FONT, 20, "bold"))
+        if self.brand_logo is not None:
+            brand.configure(image=self.brand_logo)
+        brand.pack(side="left")
+
+        name_frame = ttk.Frame(header)
+        name_frame.pack(side="left", fill="x", expand=True, padx=(16, 0))
+
+        ttk.Label(name_frame, text="Workout name:").pack(side="left")
+        self.workout_name = tk.StringVar(value="My Running Workout")
+        ttk.Entry(
+            name_frame, textvariable=self.workout_name, width=24
+        ).pack(side="left", fill="x", expand=True, padx=(8, 0))
+
+        # FILE ACTIONS
+        file_actions = ttk.Frame(self.root, padding=(12, 0, 12, 8))
+        file_actions.pack(fill="x")
+
+        self.make_button(
+            file_actions, text="Open Workout", role="Secondary", command=self.open_workout
+        ).pack(side="left", padx=(0, 5))
+
+        self.make_button(
+            file_actions, text="Save Workout", role="Success", command=self.save_workout
+        ).pack(side="left", padx=5)
+        self.make_button(
+            file_actions, text="Check Commercial LE", command=self.check_commercial_le
+        ).pack(side="left", padx=5)
+
+        self.make_button(file_actions, text="Export to QZ XML",
+                         command=self.export_qz_xml).pack(side="left", padx=5)
+
+
+        summary_bar = ttk.Frame(self.root, padding=(12, 0, 12, 6))
+        summary_bar.pack(fill="x")
+        self.summary = tk.StringVar()
+        ttk.Label(
+            summary_bar,
+            textvariable=self.summary,
+            font=(UI_FONT, 11, "bold"),
+        ).pack(anchor="w")
+
+        workspace = ttk.Frame(self.root)
+        workspace.pack(fill="both", expand=True)
         self.page_canvas = tk.Canvas(
-            self.root, background=self.colors["background"],
+            workspace, background=self.colors["background"],
             highlightthickness=0, borderwidth=0
         )
         page_scrollbar = ttk.Scrollbar(
-            self.root, orient="vertical", command=self.page_canvas.yview
+            workspace, orient="vertical", command=self.page_canvas.yview
         )
         self.page_canvas.configure(yscrollcommand=page_scrollbar.set)
         page_scrollbar.pack(side="right", fill="y")
@@ -286,33 +332,100 @@ class TreadmillApp:
         )
         self.content_frame.bind("<Configure>", self._on_content_configure)
         self.page_canvas.bind("<Configure>", self._on_canvas_configure)
-        self.page_canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.root.bind("<MouseWheel>", self._on_mousewheel, add="+")
+        self.root.bind("<FocusIn>", self._on_workspace_focus, add="+")
 
-        self.brand_logo = self.load_brand()
-        brand = ttk.Label(self.content_frame, text="TreadCraft", font=(UI_FONT, 20, "bold"))
-        if self.brand_logo is not None:
-            brand.configure(image=self.brand_logo)
-        brand.pack(pady=(15, 3))
+        # WORKOUT TREE
+        self.structure_panel = ttk.LabelFrame(
+            self.content_frame, text="Workout Structure", padding=10
+        )
 
-        ttk.Label(
-            self.content_frame,
-            text="Create and plan your running workouts",
-        ).pack(pady=(0, 10))
+        # WORKOUT POOL AND SEGMENT ACTIONS
+        pool_content = ttk.Frame(self.structure_panel)
+        pool_content.pack(fill="both", expand=True)
 
-        name_frame = ttk.Frame(self.content_frame, padding=10)
-        name_frame.pack(fill="x", padx=15)
+        tree_frame = ttk.Frame(pool_content)
+        tree_frame.pack(fill="both", expand=True)
 
-        ttk.Label(name_frame, text="Workout name:").pack(side="left")
-        self.workout_name = tk.StringVar(value="My Running Workout")
-        ttk.Entry(
-            name_frame, textvariable=self.workout_name, width=40
-        ).pack(side="left", padx=10)
+        segment_actions = ttk.Frame(pool_content, padding=(0, 6))
+        segment_actions.pack(fill="x")
 
+        self.make_button(
+            segment_actions, text="Edit Segment", role="Secondary", command=self.edit_segment
+        ).pack(side="left", padx=(0, 6))
+
+        self.make_button(
+            segment_actions, text="Duplicate Segment", role="Secondary", command=self.duplicate_segment
+        ).pack(side="left", padx=(0, 6))
+
+        self.make_button(
+            segment_actions, text="Remove Segment", role="Danger", command=self.remove_segment
+        ).pack(side="left", padx=(0, 6))
+        columns = ("duration", "speed", "incline", "distance")
+        self.tree = ttk.Treeview(
+            tree_frame,
+            columns=columns,
+            show="tree headings",
+            selectmode="browse",
+            height=6,
+        )
+
+        self.tree.tag_configure(
+            "recovery", background="#293b4b", foreground="#b9d5e8"
+        )
+        self.tree.tag_configure(
+            "tempo", background="#49364f", foreground="#f0c9f4"
+        )
+        self.tree.tag_configure(
+            "interval", background="#56343a", foreground="#ffd0d3"
+        )
+        self.tree.tag_configure(
+            "hill", background="#51432f", foreground="#f3d8a5"
+        )
+        self.tree.tag_configure(
+            "aerobic", background="#25463e", foreground="#c0eadb"
+        )
+        self.tree.tag_configure(
+            "custom", background="#303b4b", foreground="#d7e0ed"
+        )
+        self.tree.tag_configure(
+            "block", background="#102053", foreground="#ffffff"
+        )
+
+        self.tree.heading("#0", text="Block / Segment")
+        self.tree.heading("duration", text="Duration (min)")
+        self.tree.heading("speed", text="Speed (km/h)")
+        self.tree.heading("incline", text="Incline (%)")
+        self.tree.heading("distance", text="Distance (km)")
+
+        self.tree.column("#0", width=215)
+        self.tree.column("duration", width=108, anchor="center")
+        self.tree.column("speed", width=108, anchor="center")
+        self.tree.column("incline", width=90, anchor="center")
+        self.tree.column("distance", width=108, anchor="center")
+
+        scrollbar = ttk.Scrollbar(
+            tree_frame, orient="vertical", command=self.tree.yview
+        )
+        horizontal = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscrollcommand=scrollbar.set, xscrollcommand=horizontal.set)
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        horizontal.grid(row=1, column=0, sticky="ew")
+        tree_frame.rowconfigure(0, weight=1)
+        tree_frame.columnconfigure(0, weight=1)
+        self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
+        self.tree.bind("<ButtonPress-1>", self.start_tree_drag, add="+")
+        self.tree.bind("<B1-Motion>", self.show_tree_drag_preview, add="+")
+        self.tree.bind("<ButtonRelease-1>", self.finish_tree_drag, add="+")
+        self.root.bind("<Escape>", self.clear_tree_selection, add="+")
+
+        editor = self.editor_panel = ttk.Frame(self.content_frame)
         # BLOCK EDITOR
         block_frame = ttk.LabelFrame(
-            self.content_frame, text="Workout Blocks (Optional)", padding=10
+            editor, text="Workout Blocks (Optional)", padding=10
         )
-        block_frame.pack(anchor="w", padx=15, pady=5)
+        block_frame.pack(fill="x", pady=(0, 8))
 
         ttk.Label(block_frame, text="Block name:").grid(
             row=0, column=0, padx=5, sticky="w"
@@ -330,40 +443,43 @@ class TreadmillApp:
             block_frame, textvariable=self.block_repetitions, width=8
         ).grid(row=1, column=1, padx=5, pady=5)
 
+        block_actions = ttk.Frame(block_frame)
+        block_actions.grid(row=2, column=0, columnspan=2, sticky="w")
+
         self.make_button(
-            block_frame, text="Add Block", role="Success", command=self.add_block
-        ).grid(row=1, column=2, padx=4)
+            block_actions, text="Add Block", role="Success", command=self.add_block
+        ).grid(row=0, column=0, padx=4, pady=3, sticky="ew")
 
         self.update_block_button = self.make_button(
-            block_frame,
+            block_actions,
             text="Update Block", role="Secondary",
             command=self.update_block,
             state="disabled",
         )
-        self.update_block_button.grid(row=1, column=3, padx=4)
+        self.update_block_button.grid(row=0, column=1, padx=4, pady=3, sticky="ew")
 
         self.make_button(
-            block_frame, text="Duplicate Block", role="Secondary", command=self.duplicate_block
-        ).grid(row=1, column=4, padx=4)
+            block_actions, text="Duplicate Block", role="Secondary", command=self.duplicate_block
+        ).grid(row=0, column=2, padx=4, pady=3, sticky="ew")
         self.make_button(
-            block_frame, text="Remove Block", role="Danger", command=self.remove_block
-        ).grid(row=1, column=5, padx=4)
+            block_actions, text="Remove Block", role="Danger", command=self.remove_block
+        ).grid(row=1, column=0, padx=4, pady=3, sticky="ew")
         self.make_button(
-            block_frame,
+            block_actions,
             text="Move Block Up",
             command=lambda: self.move_item(-1, "block"),
-        ).grid(row=1, column=6, padx=4)
+        ).grid(row=1, column=1, padx=4, pady=3, sticky="ew")
         self.make_button(
-            block_frame,
+            block_actions,
             text="Move Block Down",
             command=lambda: self.move_item(1, "block"),
-        ).grid(row=1, column=7, padx=4)
+        ).grid(row=1, column=2, padx=4, pady=3, sticky="ew")
 
         # SEGMENT EDITOR
         input_frame = ttk.LabelFrame(
-            self.content_frame, text="Add or Edit Segment", padding=10
+            editor, text="Add or Edit Segment", padding=10
         )
-        input_frame.pack(anchor="w", padx=15, pady=5)
+        input_frame.pack(fill="x", pady=(0, 8), before=block_frame)
 
         ttk.Label(input_frame, text="Segment type:").grid(
             row=0, column=0, padx=5, sticky="w"
@@ -418,156 +534,82 @@ class TreadmillApp:
             state="readonly",
             width=6,
         )
-        self.distance_unit_menu.grid(row=1, column=4, padx=5, pady=5)
+        self.distance_unit_menu.grid(row=3, column=0, padx=5, pady=5, sticky="w")
         self.distance_unit_menu.grid_remove()
 
         ttk.Label(input_frame, text="Speed (km/h):").grid(
-            row=0, column=5, padx=5, sticky="w"
+            row=2, column=1, padx=5, sticky="w"
         )
         self.speed = tk.StringVar(value="6")
         ttk.Entry(input_frame, textvariable=self.speed, width=10).grid(
-            row=1, column=5, padx=5, pady=5
+            row=3, column=1, padx=5, pady=5
         )
 
         ttk.Label(input_frame, text="Incline (%):").grid(
-            row=0, column=6, padx=5, sticky="w"
+            row=2, column=2, padx=5, sticky="w"
         )
         self.incline = tk.StringVar(value="1")
         ttk.Entry(input_frame, textvariable=self.incline, width=8).grid(
-            row=1, column=6, padx=5, pady=5
+            row=3, column=2, padx=5, pady=5
         )
 
+        segment_commands = ttk.Frame(input_frame)
+        segment_commands.grid(row=4, column=0, columnspan=4, sticky="w")
         self.add_segment_button = self.make_button(
-            input_frame, text="Add Segment", role="Success", command=self.add_segment
+            segment_commands, text="Add Segment", role="Success", command=self.add_segment
         )
-        self.add_segment_button.grid(row=1, column=7, padx=4)
+        self.add_segment_button.pack(side="left", padx=4)
 
         self.update_segment_button = self.make_button(
-            input_frame,
+            segment_commands,
             text="Update Segment", role="Success",
             command=self.update_segment,
             state="disabled",
         )
-        self.update_segment_button.grid(row=1, column=8, padx=4)
+        self.update_segment_button.pack(side="left", padx=4)
 
-        self.summary = tk.StringVar()
-        ttk.Label(
-            self.content_frame,
-            textvariable=self.summary,
-            font=(UI_FONT, 11, "bold"),
-        ).pack(pady=(5, 15))
-
-        # WORKOUT TREE
-        table_frame = ttk.LabelFrame(
-            self.content_frame, text="Workout Structure", padding=10
-        )
-        table_frame.pack(
-            fill="both", expand=True, padx=15, pady=5
-        )
-
-        # FILE ACTIONS
-        file_actions = ttk.Frame(table_frame)
-        file_actions.pack(fill="x", pady=(0, 8))
-
-        self.make_button(
-            file_actions, text="Open Workout", role="Secondary", command=self.open_workout
-        ).pack(side="left", padx=(0, 5))
-
-        self.make_button(
-            file_actions, text="Save Workout", role="Success", command=self.save_workout
-        ).pack(side="left", padx=5)
-        self.make_button(
-            file_actions, text="Check Commercial LE", command=self.check_commercial_le
-        ).pack(side="left", padx=5)
-        
-        self.make_button(file_actions, text="Export to QZ XML",
-                         command=self.export_qz_xml).pack(side="left", padx=5)
-
-
-        # WORKOUT POOL AND SEGMENT ACTIONS
-        pool_content = ttk.Frame(table_frame)
-        pool_content.pack(fill="both", expand=True)  
-
-        tree_frame = ttk.Frame(pool_content)
-        tree_frame.pack(side="left", fill="both", expand=True)
-
-        segment_actions = ttk.Frame(pool_content, padding=(10, 0))
-        segment_actions.pack(side="right", fill="y")
-
-        self.make_button(
-            segment_actions, text="Edit Segment", role="Secondary", command=self.edit_segment
-        ).pack(fill="x", pady=4)
-
-        self.make_button(
-            segment_actions, text="Duplicate Segment", role="Secondary", command=self.duplicate_segment
-        ).pack(fill="x", pady=4)
-
-        self.make_button(
-            segment_actions, text="Remove Segment", role="Danger", command=self.remove_segment
-        ).pack(fill="x", pady=4) 
-        columns = ("duration", "speed", "incline", "distance")
-        self.tree = ttk.Treeview(
-            tree_frame,
-            columns=columns,
-            show="tree headings",
-            selectmode="browse",
-        )
-
-        self.tree.tag_configure(
-            "recovery", background="#293b4b", foreground="#b9d5e8"
-        )
-        self.tree.tag_configure(
-            "tempo", background="#49364f", foreground="#f0c9f4"
-        )
-        self.tree.tag_configure(
-            "interval", background="#56343a", foreground="#ffd0d3"
-        )
-        self.tree.tag_configure(
-            "hill", background="#51432f", foreground="#f3d8a5"
-        )
-        self.tree.tag_configure(
-            "aerobic", background="#25463e", foreground="#c0eadb"
-        )
-        self.tree.tag_configure(
-            "custom", background="#303b4b", foreground="#d7e0ed"
-        )
-        self.tree.tag_configure(
-            "block", background="#102053", foreground="#ffffff"
-        )
-
-        self.tree.heading("#0", text="Block / Segment")
-        self.tree.heading("duration", text="Duration (min)")
-        self.tree.heading("speed", text="Speed (km/h)")
-        self.tree.heading("incline", text="Incline (%)")
-        self.tree.heading("distance", text="Distance (km)")
-
-        self.tree.column("#0", width=300)
-        self.tree.column("duration", width=130, anchor="center")
-        self.tree.column("speed", width=130, anchor="center")
-        self.tree.column("incline", width=120, anchor="center")
-        self.tree.column("distance", width=130, anchor="center")
-
-        scrollbar = ttk.Scrollbar(
-            tree_frame, orient="vertical", command=self.tree.yview
-        )
-        self.tree.configure(yscrollcommand=scrollbar.set)
-        self.tree.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-        self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
-        self.tree.bind("<ButtonPress-1>", self.start_tree_drag, add="+")
-        self.tree.bind("<B1-Motion>", self.show_tree_drag_preview, add="+")
-        self.tree.bind("<ButtonRelease-1>", self.finish_tree_drag, add="+")
-        self.root.bind("<Escape>", self.clear_tree_selection, add="+")
+        self.content_frame.columnconfigure(0, weight=1)
+        self.structure_panel.grid(row=0, column=0, sticky="nsew", padx=12, pady=4)
+        editor.grid(row=0, column=1, sticky="new", padx=(0, 12), pady=4)
 
     def _on_content_configure(self, event=None):
+        height = max(self.page_canvas.winfo_height(), self.content_frame.winfo_reqheight())
+        self.page_canvas.itemconfigure(self.content_window, height=height)
         self.page_canvas.configure(scrollregion=self.page_canvas.bbox("all"))
 
     def _on_canvas_configure(self, event):
-        self.page_canvas.itemconfigure(self.content_window, width=event.width)
+        self.page_canvas.itemconfigure(
+            self.content_window, width=event.width,
+            height=max(event.height, self.content_frame.winfo_reqheight()),
+        )
 
     def _on_mousewheel(self, event):
-        if event.delta:
+        if event.widget is not self.tree and (
+            event.widget is self.page_canvas or self._in_workspace(event.widget)
+        ):
             self.page_canvas.yview_scroll(int(-event.delta / 120), "units")
+
+    def _in_workspace(self, widget):
+        while widget is not None:
+            if widget is self.content_frame:
+                return True
+            widget = getattr(widget, "master", None)
+        return False
+
+    def _on_workspace_focus(self, event):
+        widget = event.widget
+        if not self._in_workspace(widget):
+            return
+        canvas = self.page_canvas
+        top = widget.winfo_rooty() - canvas.winfo_rooty()
+        bottom = top + widget.winfo_height()
+        height = self.content_frame.winfo_height()
+        if top < 0:
+            canvas.yview_moveto((canvas.canvasy(0) + top) / height)
+        elif bottom > canvas.winfo_height():
+            canvas.yview_moveto(
+                (canvas.canvasy(0) + bottom - canvas.winfo_height()) / height
+            )
 
     # --------------------------------------------------
     # PRESETS, MEASUREMENT MODE AND VALIDATION
