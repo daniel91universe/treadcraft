@@ -210,7 +210,7 @@ class TreadmillApp:
             self.root.iconbitmap(default=str(BRAND_ASSETS / "TreadCraft.ico"))
         except tk.TclError:
             pass  # Keep the platform icon if the ICO is unavailable.
-        if sys.platform == "win32":
+        if sys.platform == "win32" and self.root.winfo_fpixels("1i") <= 97:
             self.root.after_idle(self.set_windows_title_icon)
         try:
             return tk.PhotoImage(
@@ -236,7 +236,7 @@ class TreadmillApp:
 
         # "wm frame" returns the native wrapper that owns the title bar.
         hwnd = int(self.root.frame(), 0)
-        set_class = user32.SetClassLongPtrW
+        set_class = getattr(user32, "SetClassLongPtrW", None) or user32.SetClassLongW
         set_class.argtypes = (wintypes.HWND, ctypes.c_int, ctypes.c_void_p)
         set_class.restype = ctypes.c_void_p
         previous = set_class(hwnd, -34, icon)  # GCLP_HICONSM
@@ -349,19 +349,22 @@ class TreadmillApp:
         tree_frame.pack(fill="both", expand=True)
 
         segment_actions = ttk.Frame(pool_content, padding=(0, 6))
-        segment_actions.pack(fill="x")
+        segment_actions.pack(fill="x", before=tree_frame)
 
-        self.make_button(
+        edit = self.make_button(
             segment_actions, text="Edit Segment", role="Secondary", command=self.edit_segment
-        ).pack(side="left", padx=(0, 6))
+        )
 
-        self.make_button(
+        duplicate = self.make_button(
             segment_actions, text="Duplicate Segment", role="Secondary", command=self.duplicate_segment
-        ).pack(side="left", padx=(0, 6))
+        )
 
-        self.make_button(
+        remove = self.make_button(
             segment_actions, text="Remove Segment", role="Danger", command=self.remove_segment
-        ).pack(side="left", padx=(0, 6))
+        )
+        segment_actions.bind("<Configure>", lambda event: self._wrap_segment_actions(
+            event.width, (edit, duplicate, remove)
+        ))
         columns = ("duration", "speed", "incline", "distance")
         self.tree = ttk.Treeview(
             tree_frame,
@@ -576,6 +579,12 @@ class TreadmillApp:
         self.content_frame.columnconfigure(0, weight=1)
         self.structure_panel.grid(row=0, column=0, sticky="nsew", padx=12, pady=4)
         editor.grid(row=0, column=1, sticky="new", padx=(0, 12), pady=4)
+
+    def _wrap_segment_actions(self, width, buttons):
+        stacked = sum(button.winfo_reqwidth() + 6 for button in buttons) > width
+        for index, button in enumerate(buttons):
+            button.grid(row=index if stacked else 0, column=0 if stacked else index,
+                        sticky="w", padx=(0, 6), pady=2)
 
     def _on_content_configure(self, event=None):
         height = max(self.page_canvas.winfo_height(), self.content_frame.winfo_reqheight())
@@ -1178,7 +1187,9 @@ class TreadmillApp:
 
     def confirm_qz_preview(self, title, result):
         summary, details = qz_preview(result)
+        previous_focus = self.root.focus_get()
         dialog = tk.Toplevel(self.root)
+        dialog.withdraw()
         dialog.title(title)
         dialog.transient(self.root)
         dialog.minsize(520, 360)
@@ -1214,7 +1225,7 @@ class TreadmillApp:
         scrollbar = ttk.Scrollbar(diagnostics)
         scrollbar.pack(side="right", fill="y")
         messages = tk.Text(
-            diagnostics, wrap="word", width=64, height=9, padx=8, pady=6,
+            diagnostics, wrap="word", width=50, height=8, padx=8, pady=6,
             bg=self.colors["input"], fg=self.colors["foreground"],
             yscrollcommand=scrollbar.set,
         )
@@ -1229,10 +1240,19 @@ class TreadmillApp:
             messages.insert("end", "No diagnostics.")
         messages.config(state="disabled")
         dialog.bind("<Escape>", lambda event: (dialog.destroy(), "break")[1])
+        dialog.update_idletasks()
+        width = max(520, dialog.winfo_reqwidth())
+        height = max(360, dialog.winfo_reqheight())
+        x = self.root.winfo_rootx() + max(0, (self.root.winfo_width() - width) // 2)
+        y = self.root.winfo_rooty() + max(0, (self.root.winfo_height() - height) // 2)
+        dialog.geometry(f"{width}x{height}{x:+d}{y:+d}")
+        dialog.deiconify()
         dialog.wait_visibility()
         dialog.grab_set()
         cancel.focus_set()
         dialog.wait_window()
+        if previous_focus is not None and previous_focus.winfo_exists():
+            previous_focus.focus_set()
         return confirmed
 
     def export_qz_xml(self):
