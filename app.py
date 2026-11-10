@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox, filedialog
 import json
 import copy
 import os
+import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 import xml.etree.ElementTree as ET
@@ -208,11 +209,45 @@ class TreadmillApp:
             self.root.iconbitmap(default=str(BRAND_ASSETS / "TreadCraft.ico"))
         except tk.TclError:
             pass  # Keep the platform icon if the ICO is unavailable.
+        if sys.platform == "win32":
+            self.root.after_idle(self.set_windows_title_icon)
         try:
-            logo = tk.PhotoImage(master=self.root, file=str(BRAND_ASSETS / "treadcraft-logo-dark.png"))
-            return logo.subsample(6, 6)
+            return tk.PhotoImage(
+                master=self.root,
+                file=str(BRAND_ASSETS / "treadcraft-logo-dark-header.png"),
+            )
         except tk.TclError:
             return None
+
+    def set_windows_title_icon(self):
+        import ctypes
+        from ctypes import wintypes
+
+        user32 = ctypes.WinDLL("user32")
+        load = user32.LoadImageW
+        load.argtypes = (wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.UINT,
+                         ctypes.c_int, ctypes.c_int, wintypes.UINT)
+        load.restype = wintypes.HANDLE
+        icon = load(None, str(BRAND_ASSETS / "TreadCraft-title-16.ico"),
+                    1, 16, 16, 0x0010)  # IMAGE_ICON, LR_LOADFROMFILE
+        if not icon:
+            return
+
+        # "wm frame" returns the native wrapper that owns the title bar.
+        hwnd = int(self.root.frame(), 0)
+        set_class = user32.SetClassLongPtrW
+        set_class.argtypes = (wintypes.HWND, ctypes.c_int, ctypes.c_void_p)
+        set_class.restype = ctypes.c_void_p
+        previous = set_class(hwnd, -34, icon)  # GCLP_HICONSM
+        destroy = user32.DestroyIcon
+        destroy.argtypes = (wintypes.HANDLE,)
+        destroy.restype = wintypes.BOOL
+        def release(event):
+            if event.widget is self.root:
+                set_class(hwnd, -34, previous)
+                destroy(icon)
+
+        self.root.bind("<Destroy>", release, add="+")
 
     def segment_colour_tag(self, segment):
         name = segment.get("name", "").lower()
