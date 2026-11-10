@@ -304,11 +304,11 @@ class TreadmillApp:
                          command=self.export_qz_xml).pack(side="left", padx=5)
 
 
-        footer = ttk.Frame(self.root, padding=(12, 5))
-        footer.pack(side="bottom", fill="x")
+        summary_bar = ttk.Frame(self.root, padding=(12, 0, 12, 6))
+        summary_bar.pack(fill="x")
         self.summary = tk.StringVar()
         ttk.Label(
-            footer,
+            summary_bar,
             textvariable=self.summary,
             font=(UI_FONT, 11, "bold"),
         ).pack(anchor="w")
@@ -479,7 +479,7 @@ class TreadmillApp:
         input_frame = ttk.LabelFrame(
             editor, text="Add or Edit Segment", padding=10
         )
-        input_frame.pack(fill="x", pady=(0, 8))
+        input_frame.pack(fill="x", pady=(0, 8), before=block_frame)
 
         ttk.Label(input_frame, text="Segment type:").grid(
             row=0, column=0, padx=5, sticky="w"
@@ -568,20 +568,9 @@ class TreadmillApp:
         )
         self.update_segment_button.pack(side="left", padx=4)
 
-        self.wide_workspace = None
-        self._layout_workspace(wide=False)
-
-    def _layout_workspace(self, wide):
-        if wide == self.wide_workspace:
-            return
-        self.wide_workspace = wide
         self.content_frame.columnconfigure(0, weight=1)
         self.structure_panel.grid(row=0, column=0, sticky="nsew", padx=12, pady=4)
-        self.editor_panel.grid(
-            row=0 if wide else 1, column=1 if wide else 0,
-            sticky="new", padx=(0, 12) if wide else 12, pady=4,
-        )
-        self.page_canvas.after_idle(self._on_content_configure)
+        editor.grid(row=0, column=1, sticky="new", padx=(0, 12), pady=4)
 
     def _on_content_configure(self, event=None):
         height = max(self.page_canvas.winfo_height(), self.content_frame.winfo_reqheight())
@@ -593,7 +582,6 @@ class TreadmillApp:
             self.content_window, width=event.width,
             height=max(event.height, self.content_frame.winfo_reqheight()),
         )
-        self._layout_workspace(wide=event.width >= 1200)
 
     def _on_mousewheel(self, event):
         if event.widget is not self.tree and (
