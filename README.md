@@ -1,6 +1,12 @@
 # TreadCraft
 
-TreadCraft is a Windows desktop app for building treadmill workouts from individual segments and repeatable blocks. Workouts are saved as editable JSON and can be converted to QZ (qdomyos-zwift) XML using the Python exporter.
+TreadCraft is a Windows desktop app for building treadmill workouts from individual segments and repeatable blocks. Save workouts as editable JSON or export them as QZ (qdomyos-zwift) XML from the app.
+
+![TreadCraft on Windows showing the 3 × 3000 m workout, with the workout table on the left and the segment and block editors on the right](docs/images/treadcraft-v0.2.0-windows.png)
+
+The v0.2.0 redesign adds the TreadCraft branding and a compact layout. The main commands and workout totals stay above the scrollable editor. The window sets its minimum width at startup based on the space needed for the table headings and editor at the current display scaling.
+
+See the [changelog](CHANGELOG.md) and the [v0.2.0 release notes](RELEASE_NOTES_v0.2.0.md).
 
 ## Run on Windows
 
@@ -41,7 +47,9 @@ To export the example instead, replace `workout.json` in the command with `examp
 
 Distance-based segments retain their `distance` in kilometers as the end criterion. The exporter also adds an estimated `duration` for the QZ preview, calculated from the distance and target speed and rounded to the nearest second. For example, a 3 km repeat at 14 km/h has `distance="3"` and `duration="00:12:51"`. If the estimate falls outside QZ's duration range after rounding, the exporter keeps the distance and emits a warning.
 
-The example XML was loaded and displayed in QZ Android without a treadmill connected. Connection to the Commercial LE, actual speed reporting, automatic speed changes, time and distance transitions, and pause, resume, and stop behavior still need verification on the treadmill.
+The example XML was opened manually and displayed in QZ Android 2.20.29 without a treadmill connected. Direct Wi-Fi delivery from TreadCraft to QZ is planned for a future version. For this version, transfer the exported file separately and open it from the QZ file picker.
+
+Commercial LE compatibility is preliminary. Connection, actual speed reporting, automatic speed changes, incline response, time and distance transitions, and pause, resume, and stop behavior still need verification on the treadmill.
 
 ## Run the tests
 
