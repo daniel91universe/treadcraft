@@ -4,8 +4,8 @@ import unittest
 
 from websockets.asyncio.server import serve
 
-from qz_ws_client import (QzConnectionError, QzSaveUncertainError,
-                          check_connection, save_training_program)
+from qz_ws_client import (QzConnectionError, QzIdentityError, QzSaveUncertainError,
+                          check_connection, save_training_program, verify_qz)
 from qz_ws_payload import build_save_payload
 
 
@@ -29,6 +29,61 @@ class QzClientTests(unittest.IsolatedAsyncioTestCase):
         address = await self.server(handler)
         await check_connection(f"http://{address}/floating/floating.htm")
         self.assertEqual(received, [])
+
+    async def test_verification_checks_identity_without_saving(self):
+        requests = []
+
+        async def handler(ws):
+            async for message in ws:
+                requests.append(json.loads(message))
+                await ws.send('{"msg":"workout"}')
+                await ws.send('{"msg":"R_workouteditor_env","content":'
+                              '{"miles":false,"device":"treadmill"}}')
+
+        address = await self.server(handler)
+        self.assertEqual(await verify_qz(f"http://{address}/floating/floating.htm"),
+                         f"ws://{address}/")
+        self.assertEqual(requests, [{"msg": "workouteditor_env"}])
+
+    async def test_generic_or_malformed_identity_is_rejected(self):
+        for reply in ("not json", '{"msg":"hello"}',
+                      '{"msg":"R_workouteditor_env","content":{"miles":0,"device":"treadmill"}}',
+                      '{"msg":"R_workouteditor_env","content":{"miles":false,"device":""}}'):
+            async def handler(ws):
+                await ws.recv()
+                await ws.send(reply)
+
+            with self.subTest(reply=reply), self.assertRaises(QzIdentityError):
+                await verify_qz(await self.server(handler))
+
+    async def test_verification_timeout_and_refusal_are_distinct(self):
+        async def silent(ws):
+            await ws.recv()
+            await ws.wait_closed()
+
+        with self.assertRaisesRegex(QzConnectionError, "Timed out"):
+            await verify_qz(await self.server(silent), timeout=0.3)
+        async with serve(silent, "127.0.0.1", 0) as server:
+            address = f"127.0.0.1:{server.sockets[0].getsockname()[1]}"
+        with self.assertRaisesRegex(QzConnectionError, "connection refused"):
+            await verify_qz(address)
+
+    async def test_cancelled_verification_closes_socket(self):
+        received = asyncio.Event()
+        closed = asyncio.Event()
+
+        async def handler(ws):
+            await ws.recv()
+            received.set()
+            await ws.wait_closed()
+            closed.set()
+
+        task = asyncio.create_task(verify_qz(await self.server(handler)))
+        await asyncio.wait_for(received.wait(), timeout=2)
+        task.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await task
+        await asyncio.wait_for(closed.wait(), timeout=2)
 
     async def test_save_ignores_telemetry_and_confirms_matching_receipt(self):
         requests = []

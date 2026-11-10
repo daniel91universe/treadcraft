@@ -10,14 +10,15 @@ import sys
 from pathlib import Path
 from queue import Empty, SimpleQueue
 from tempfile import NamedTemporaryFile
-from threading import Thread
+from threading import Event, Thread
 import xml.etree.ElementTree as ET
 from workout_data import (
     normalize_segment, normalize_workout, normalize_block_values,
     calculate_totals as workout_totals,
 )
 from device_capabilities import ProfileCompatibilityError, assess_workout
-from qz_ws_client import QzConnectionError, QzSaveUncertainError, check_connection, save_training_program
+from qz_connection_config import load_qz_endpoint, save_qz_endpoint
+from qz_ws_client import QzConnectionError, QzSaveUncertainError, save_training_program, verify_qz
 from qz_ws_payload import build_save_payload
 from qz_xml_export import QzXmlExportError, export_workout
 
@@ -294,7 +295,7 @@ class TreadmillApp:
         ).pack(side="left", fill="x", expand=True, padx=(8, 0))
 
         # FILE ACTIONS
-        file_actions = ttk.Frame(self.root, padding=(12, 0, 12, 8))
+        file_actions = ttk.Frame(self.root, padding=(12, 0, 12, 4))
         file_actions.pack(fill="x")
 
         self.make_button(
@@ -593,14 +594,19 @@ class TreadmillApp:
         self.content_frame.columnconfigure(0, weight=1)
         self.structure_panel.grid(row=0, column=0, sticky="nsew", padx=12, pady=4)
         editor.grid(row=0, column=1, sticky="new", padx=(0, 12), pady=4)
-        self.root.after_idle(self._set_workspace_min_width)
+        self.root.after_idle(self._set_initial_window_size)
 
-    def _set_workspace_min_width(self):
+    def _set_initial_window_size(self):
         self.root.update_idletasks()
         # Include the workspace scrollbar and the table's frame and scrollbar.
         width = max(900, self.editor_panel.winfo_reqwidth() + self.tree_min_width + 108)
         self.root.minsize(width, 600)
-        self.root.geometry(f"{width}x600")
+        header_height = sum(
+            widget.winfo_reqheight() for widget in self.root.pack_slaves()
+            if widget is not self.page_canvas.master
+        )
+        height = header_height + self.content_frame.winfo_reqheight()
+        self.root.geometry(f"{width}x{max(600, min(height, self.root.maxsize()[1]))}")
 
     def _wrap_segment_actions(self, width, buttons):
         stacked = sum(button.winfo_reqwidth() + 6 for button in buttons) > width
@@ -1208,23 +1214,36 @@ class TreadmillApp:
         return report
 
     def create_qz_controls(self):
-        panel = ttk.Frame(self.root, padding=(12, 0, 12, 6))
+        panel = ttk.Frame(self.root, padding=(12, 0, 12, 3))
         panel.pack(fill="x")
-        self.qz_address = tk.StringVar(master=self.root, value="")
+        self.last_qz_endpoint = load_qz_endpoint()
+        self.qz_address = tk.StringVar(master=self.root, value=self.last_qz_endpoint or "")
         self.qz_status = tk.StringVar(master=self.root, value="Enter the address shown by QZ.")
         self.qz_result = None
+        self.qz_cancel = None
         ttk.Label(panel, text="QZ address:").grid(row=0, column=0, sticky="w")
-        address_entry = ttk.Entry(panel, textvariable=self.qz_address, width=24)
+        address_entry = ttk.Entry(panel, textvariable=self.qz_address, width=16)
         address_entry.grid(row=0, column=1, sticky="ew", padx=6)
         test_button = self.make_button(panel, text="Test Connection", role="Secondary",
                                        command=self.test_qz_connection)
         test_button.grid(row=0, column=2, padx=(0, 6))
         send_button = self.make_button(panel, text="Send to QZ", command=self.send_to_qz)
-        send_button.grid(row=0, column=3)
+        send_button.grid(row=0, column=5)
         self.qz_controls = (address_entry, test_button, send_button)
+        self.qz_reconnect_button = self.make_button(
+            panel, text="Reconnect to QZ", role="Secondary", command=self.reconnect_to_qz
+        )
+        self.qz_reconnect_button.grid(row=0, column=3, padx=(0, 6))
+        self.qz_cancel_button = self.make_button(
+            panel, text="Cancel", role="Secondary", command=self.cancel_qz_verification
+        )
+        self.qz_cancel_button.grid(row=0, column=4, padx=(0, 6))
+        self.qz_cancel_button.state(["disabled"])
+        if not self.last_qz_endpoint:
+            self.qz_reconnect_button.state(["disabled"])
         panel.columnconfigure(1, weight=1)
         status = ttk.Label(panel, textvariable=self.qz_status, justify="left")
-        status.grid(row=1, column=0, columnspan=4, sticky="w", pady=(3, 0))
+        status.grid(row=1, column=0, columnspan=6, sticky="w")
         panel.bind("<Configure>", lambda event: status.configure(
             wraplength=max(1, event.width - 24)
         ))
@@ -1234,7 +1253,18 @@ class TreadmillApp:
 
     def test_qz_connection(self):
         if self.qz_result is None:
-            self.start_qz_operation(check_connection, "Testing QZ connection…")
+            self.start_qz_operation(verify_qz, "Verifying QZ…", verification=True)
+
+    def reconnect_to_qz(self):
+        if self.qz_result is None and self.last_qz_endpoint:
+            self.qz_address.set(self.last_qz_endpoint)
+            self.start_qz_operation(verify_qz, "Reconnecting to QZ…", verification=True)
+
+    def cancel_qz_verification(self):
+        if self.qz_cancel is not None:
+            self.qz_cancel.set()
+            self.qz_cancel_button.state(["disabled"])
+            self.qz_status.set("Cancelling QZ verification…")
 
     def send_to_qz(self):
         if self.qz_result is not None:
@@ -1250,38 +1280,70 @@ class TreadmillApp:
             return
         self.start_qz_operation(save_training_program, "Sending workout to QZ…", payload)
 
-    def start_qz_operation(self, operation, status, *args):
+    def start_qz_operation(self, operation, status, *args, verification=False):
         address = self.qz_address.get().strip()
         if not address:
             self.qz_status.set("Enter the address shown by QZ.")
             return
         result = self.qz_result = SimpleQueue()
+        cancel = self.qz_cancel = Event() if verification else None
         for widget in self.qz_controls:
             widget.state(["disabled"])
+        self.qz_reconnect_button.state(["disabled"])
+        if verification:
+            self.qz_cancel_button.state(["!disabled"])
         self.qz_status.set(status)
+
+        async def run_verification():
+            task = asyncio.create_task(operation(address, *args))
+            try:
+                while not cancel.is_set():
+                    done, _ = await asyncio.wait({task}, timeout=0.05)
+                    if done:
+                        return task.result()
+            finally:
+                if not task.done():
+                    task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
 
         def work():
             try:
-                receipt = asyncio.run(operation(address, *args))
-                if receipt is None:
-                    result.put("QZ connection successful.")
+                if verification:
+                    endpoint = asyncio.run(run_verification())
+                    result.put(("QZ verified.", endpoint))
                 else:
-                    result.put(f"Saved in QZ: {receipt.name} ({receipt.row_count} rows).")
+                    receipt = asyncio.run(operation(address, *args))
+                    message = f"Saved in QZ: {receipt.name} ({receipt.row_count} rows)."
+                    result.put((message, None))
             except (QzConnectionError, QzSaveUncertainError) as error:
-                result.put(str(error))
+                message = str(error)
+                if verification:
+                    message += " If QZ restarted, paste its current floating-window URL."
+                result.put((message, None))
             except Exception:
-                result.put("QZ operation interrupted. Check QZ before trying again.")
+                result.put(("QZ operation interrupted. Check QZ before trying again.", None))
 
         Thread(target=work, daemon=True).start()
         self.root.after(50, self.poll_qz_operation)
 
     def poll_qz_operation(self):
         try:
-            message = self.qz_result.get_nowait()
+            message, endpoint = self.qz_result.get_nowait()
         except Empty:
             self.root.after(50, self.poll_qz_operation)
             return
-        self.qz_result = None
+        if self.qz_cancel is not None and self.qz_cancel.is_set():
+            message = "QZ verification cancelled."
+        elif endpoint is not None:
+            self.last_qz_endpoint = endpoint
+            try:
+                save_qz_endpoint(endpoint)
+            except OSError:
+                message = "QZ verified. The address could not be saved for the next session."
+        self.qz_cancel = self.qz_result = None
+        self.qz_cancel_button.state(["disabled"])
+        if self.last_qz_endpoint:
+            self.qz_reconnect_button.state(["!disabled"])
         for widget in self.qz_controls:
             widget.state(["!disabled"])
         self.qz_status.set(message)

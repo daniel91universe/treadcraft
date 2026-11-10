@@ -19,6 +19,10 @@ class QzConnectionError(ValueError):
     """The WebSocket connection could not be established."""
 
 
+class QzIdentityError(QzConnectionError):
+    """The service did not return a recognizable QZ identity response."""
+
+
 class QzSaveUncertainError(RuntimeError):
     """The program may have been saved, but QZ did not confirm it."""
 
@@ -87,6 +91,40 @@ async def check_connection(address, *, timeout=5):
     """Check the WebSocket handshake without sending a QZ command."""
     async with _connection(address, timeout):
         return
+
+
+def normalize_endpoint(address):
+    return _endpoint(address)[0]
+
+
+async def verify_qz(address, *, timeout=5):
+    """Verify the QZ workout editor protocol without writing to the device."""
+    endpoint = normalize_endpoint(address)
+    try:
+        async with asyncio.timeout(timeout):
+            async with _connection(endpoint, timeout) as ws:
+                await ws.send('{"msg":"workouteditor_env"}')
+                while True:
+                    reply = json.loads(await ws.recv())
+                    if isinstance(reply, dict) and reply.get("msg") == "workout":
+                        continue
+                    if isinstance(reply, dict) and reply.get("msg") == "R_workouteditor_env":
+                        content = reply.get("content")
+                        if (isinstance(content, dict) and type(content.get("miles")) is bool
+                                and isinstance(content.get("device"), str)
+                                and content["device"].strip()):
+                            return endpoint
+                    raise QzIdentityError("Response not recognized as QZ.")
+    except TimeoutError as exc:
+        raise QzConnectionError("Timed out verifying QZ.") from exc
+    except QzConnectionError as exc:
+        if isinstance(exc.__cause__, ConnectionRefusedError):
+            raise QzConnectionError("QZ connection refused.") from exc
+        if isinstance(exc.__cause__, TimeoutError):
+            raise QzConnectionError("Timed out connecting to QZ.") from exc
+        raise
+    except (OSError, WebSocketException, ValueError) as exc:
+        raise QzIdentityError("QZ did not return a valid identity response.") from exc
 
 
 async def save_training_program(address, payload, *, timeout=5):
