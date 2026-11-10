@@ -14,6 +14,10 @@ from device_capabilities import ProfileCompatibilityError, assess_workout
 from qz_xml_export import QzXmlExportError, export_workout
 
 
+BRAND_ASSETS = Path(__file__).resolve().parent / "assets" / "brand"
+UI_FONT = "Segoe UI"
+
+
 def write_qz_xml(path, xml, *, overwrite):
     """Publish a complete file, refusing races on a new destination."""
     path = Path(path)
@@ -111,21 +115,21 @@ class TreadmillApp:
 
     def configure_styles(self):
         self.colors = {
-            "background": "#151a22",
-            "panel": "#202936",
-            "panel_alt": "#263343",
-            "foreground": "#e8edf4",
+            "background": "#010B2B",
+            "panel": "#04114D",
+            "panel_alt": "#102053",
+            "foreground": "#FEFEFE",
             "muted": "#aab7c7",
-            "accent": "#19b5a5",
-            "accent_hover": "#27c9b8",
+            "accent": "#00E8F8",
+            "accent_hover": "#70F4FC",
             "border": "#354457",
-            "input": "#111821",
-            "selected": "#315b78",
-            "red": "#c75b64",
+            "input": "#020F37",
+            "selected": "#0048F8",
+            "red": "#A83448",
             "orange": "#d58a43",
             "blue": "#4d91c7",
             "purple": "#9271c7",
-            "green": "#399b78",
+            "green": "#22694F",
             "yellow": "#b79a43",
             "teal": "#248f91",
         }
@@ -143,49 +147,52 @@ class TreadmillApp:
         muted = self.colors["muted"]
         accent = self.colors["accent"]
 
-        style.configure(".", background=bg, foreground=fg, font=("Segoe UI", 10))
+        style.configure(".", background=bg, foreground=fg, font=(UI_FONT, 10))
         style.configure("TFrame", background=bg)
         style.configure("TLabelframe", background=bg, foreground=fg,
                         bordercolor=self.colors["border"], relief="solid")
         style.configure("TLabelframe.Label", background=bg, foreground=accent,
-                        font=("Segoe UI", 10, "bold"))
+                        font=(UI_FONT, 10, "bold"))
         style.configure("TLabel", background=bg, foreground=fg)
         style.configure("TEntry", fieldbackground=self.colors["input"],
                         foreground=fg, insertcolor=fg, bordercolor=self.colors["border"],
                         lightcolor=self.colors["border"], darkcolor=self.colors["border"],
                         padding=5)
+        style.map("TEntry", bordercolor=[("focus", accent)])
         style.configure("TCombobox", fieldbackground=self.colors["input"],
                         background=panel, foreground=fg, arrowcolor=accent,
                         bordercolor=self.colors["border"], padding=5)
         style.map("TCombobox",
+                  bordercolor=[("focus", accent)],
                   fieldbackground=[("readonly", self.colors["input"])],
                   foreground=[("readonly", fg)],
                   selectbackground=[("readonly", self.colors["selected"])],
                   selectforeground=[("readonly", fg)])
-        style.configure("TButton", background=accent, foreground="#071b1a",
+        style.configure("TButton", background=accent, foreground="#010B2B",
                         bordercolor=accent, padding=(10, 6),
-                        font=("Segoe UI", 9, "bold"))
+                        font=(UI_FONT, 9, "bold"))
         style.map("TButton",
-                  background=[("disabled", "#3b4653"), ("pressed", "#138f84"),
+                  bordercolor=[("focus", fg)],
+                  background=[("disabled", "#3b4653"), ("pressed", "#23C0D1"),
                               ("active", self.colors["accent_hover"])],
-                  foreground=[("disabled", "#8793a1"), ("active", "#071b1a")])
-        style.configure("Primary.TButton", background=accent, foreground="#071b1a")
+                  foreground=[("disabled", "#8793a1"), ("active", "#010B2B")])
+        style.configure("Primary.TButton", background=accent, foreground="#010B2B")
         style.map("Primary.TButton", background=[("active", self.colors["accent_hover"])])
         style.configure("Secondary.TButton", background="#425268", foreground=fg,
                         bordercolor="#425268")
         style.map("Secondary.TButton", background=[("active", "#53677f")])
         style.configure("Danger.TButton", background=self.colors["red"], foreground="#ffffff",
                         bordercolor=self.colors["red"])
-        style.map("Danger.TButton", background=[("active", "#dc7079")])
+        style.map("Danger.TButton", background=[("active", "#B94659")])
         style.configure("Success.TButton", background=self.colors["green"], foreground="#ffffff",
                         bordercolor=self.colors["green"])
-        style.map("Success.TButton", background=[("active", "#48b58e")])
+        style.map("Success.TButton", background=[("active", "#28785A")])
         style.configure("Treeview", background=self.colors["input"],
                         fieldbackground=self.colors["input"], foreground=fg,
                         rowheight=29, bordercolor=self.colors["border"],
                         lightcolor=self.colors["border"], darkcolor=self.colors["border"])
         style.configure("Treeview.Heading", background=self.colors["panel_alt"],
-                        foreground=fg, padding=7, font=("Segoe UI", 9, "bold"))
+                        foreground=fg, padding=7, font=(UI_FONT, 9, "bold"))
         style.map("Treeview",
                   background=[("selected", self.colors["selected"])],
                   foreground=[("selected", "#ffffff")])
@@ -193,18 +200,19 @@ class TreadmillApp:
         style.configure("Vertical.TScrollbar", background=panel,
                         troughcolor=bg, bordercolor=bg, arrowcolor=fg)
 
-    def make_button(self, parent, **kwargs):
-        label = kwargs.get("text", "")
-        if label in ("Remove Block", "Remove Segment"):
-            kwargs.setdefault("style", "Danger.TButton")
-        elif label in ("Save Workout", "Add Block", "Add Segment", "Update Segment"):
-            kwargs.setdefault("style", "Success.TButton")
-        elif label in ("Open Workout", "Edit Segment", "Edit Selected",
-                       "Update Block", "Duplicate Block", "Duplicate Segment"):
-            kwargs.setdefault("style", "Secondary.TButton")
-        else:
-            kwargs.setdefault("style", "Primary.TButton")
-        return ttk.Button(parent, **kwargs)
+    def make_button(self, parent, *, role="Primary", **kwargs):
+        return ttk.Button(parent, style=f"{role}.TButton", **kwargs)
+
+    def load_brand(self):
+        try:
+            self.root.iconbitmap(default=str(BRAND_ASSETS / "TreadCraft.ico"))
+        except tk.TclError:
+            pass  # Keep the platform icon if the ICO is unavailable.
+        try:
+            logo = tk.PhotoImage(master=self.root, file=str(BRAND_ASSETS / "treadcraft-logo-dark.png"))
+            return logo.subsample(6, 6)
+        except tk.TclError:
+            return None
 
     def segment_colour_tag(self, segment):
         name = segment.get("name", "").lower()
@@ -245,11 +253,11 @@ class TreadmillApp:
         self.page_canvas.bind("<Configure>", self._on_canvas_configure)
         self.page_canvas.bind_all("<MouseWheel>", self._on_mousewheel)
 
-        ttk.Label(
-            self.content_frame,
-            text="TreadCraft",
-            font=("Segoe UI", 20, "bold"),
-        ).pack(pady=(15, 3))
+        self.brand_logo = self.load_brand()
+        brand = ttk.Label(self.content_frame, text="TreadCraft", font=(UI_FONT, 20, "bold"))
+        if self.brand_logo is not None:
+            brand.configure(image=self.brand_logo)
+        brand.pack(pady=(15, 3))
 
         ttk.Label(
             self.content_frame,
@@ -288,22 +296,22 @@ class TreadmillApp:
         ).grid(row=1, column=1, padx=5, pady=5)
 
         self.make_button(
-            block_frame, text="Add Block", command=self.add_block
+            block_frame, text="Add Block", role="Success", command=self.add_block
         ).grid(row=1, column=2, padx=4)
 
         self.update_block_button = self.make_button(
             block_frame,
-            text="Update Block",
+            text="Update Block", role="Secondary",
             command=self.update_block,
             state="disabled",
         )
         self.update_block_button.grid(row=1, column=3, padx=4)
 
         self.make_button(
-            block_frame, text="Duplicate Block", command=self.duplicate_block
+            block_frame, text="Duplicate Block", role="Secondary", command=self.duplicate_block
         ).grid(row=1, column=4, padx=4)
         self.make_button(
-            block_frame, text="Remove Block", command=self.remove_block
+            block_frame, text="Remove Block", role="Danger", command=self.remove_block
         ).grid(row=1, column=5, padx=4)
         self.make_button(
             block_frame,
@@ -395,13 +403,13 @@ class TreadmillApp:
         )
 
         self.add_segment_button = self.make_button(
-            input_frame, text="Add Segment", command=self.add_segment
+            input_frame, text="Add Segment", role="Success", command=self.add_segment
         )
         self.add_segment_button.grid(row=1, column=7, padx=4)
 
         self.update_segment_button = self.make_button(
             input_frame,
-            text="Update Segment",
+            text="Update Segment", role="Success",
             command=self.update_segment,
             state="disabled",
         )
@@ -411,7 +419,7 @@ class TreadmillApp:
         ttk.Label(
             self.content_frame,
             textvariable=self.summary,
-            font=("Segoe UI", 11, "bold"),
+            font=(UI_FONT, 11, "bold"),
         ).pack(pady=(5, 15))
 
         # WORKOUT TREE
@@ -427,11 +435,11 @@ class TreadmillApp:
         file_actions.pack(fill="x", pady=(0, 8))
 
         self.make_button(
-            file_actions, text="Open Workout", command=self.open_workout
+            file_actions, text="Open Workout", role="Secondary", command=self.open_workout
         ).pack(side="left", padx=(0, 5))
 
         self.make_button(
-            file_actions, text="Save Workout", command=self.save_workout
+            file_actions, text="Save Workout", role="Success", command=self.save_workout
         ).pack(side="left", padx=5)
         self.make_button(
             file_actions, text="Check Commercial LE", command=self.check_commercial_le
@@ -452,15 +460,15 @@ class TreadmillApp:
         segment_actions.pack(side="right", fill="y")
 
         self.make_button(
-            segment_actions, text="Edit Segment", command=self.edit_segment
+            segment_actions, text="Edit Segment", role="Secondary", command=self.edit_segment
         ).pack(fill="x", pady=4)
 
         self.make_button(
-            segment_actions, text="Duplicate Segment", command=self.duplicate_segment
+            segment_actions, text="Duplicate Segment", role="Secondary", command=self.duplicate_segment
         ).pack(fill="x", pady=4)
 
         self.make_button(
-            segment_actions, text="Remove Segment", command=self.remove_segment
+            segment_actions, text="Remove Segment", role="Danger", command=self.remove_segment
         ).pack(fill="x", pady=4) 
         columns = ("duration", "speed", "incline", "distance")
         self.tree = ttk.Treeview(
@@ -489,7 +497,7 @@ class TreadmillApp:
             "custom", background="#303b4b", foreground="#d7e0ed"
         )
         self.tree.tag_configure(
-            "block", background="#263343", foreground="#ffffff"
+            "block", background="#102053", foreground="#ffffff"
         )
 
         self.tree.heading("#0", text="Block / Segment")
@@ -1099,7 +1107,7 @@ class TreadmillApp:
             status = "Ready to export with warnings"
         else:
             status = "Ready to export"
-        ttk.Label(panel, text=status, font=("Segoe UI", 12, "bold")).pack(anchor="w")
+        ttk.Label(panel, text=status, font=(UI_FONT, 12, "bold")).pack(anchor="w")
         for line in summary:
             ttk.Label(panel, text=line).pack(anchor="w", pady=(3, 0))
 
@@ -1128,7 +1136,7 @@ class TreadmillApp:
         )
         scrollbar.config(command=messages.yview)
         messages.pack(fill="both", expand=True)
-        messages.tag_configure("heading", font=("Segoe UI", 10, "bold"))
+        messages.tag_configure("heading", font=(UI_FONT, 10, "bold"))
         for heading, items in details.items():
             if items:
                 messages.insert("end", f"{heading}\n", "heading")
