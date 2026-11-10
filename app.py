@@ -1,19 +1,24 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from tkinter import font as tkfont
+import asyncio
 import json
 import copy
 import os
 import re
 import sys
 from pathlib import Path
+from queue import Empty, SimpleQueue
 from tempfile import NamedTemporaryFile
+from threading import Thread
 import xml.etree.ElementTree as ET
 from workout_data import (
     normalize_segment, normalize_workout, normalize_block_values,
     calculate_totals as workout_totals,
 )
 from device_capabilities import ProfileCompatibilityError, assess_workout
+from qz_ws_client import QzConnectionError, QzSaveUncertainError, check_connection, save_training_program
+from qz_ws_payload import build_save_payload
 from qz_xml_export import QzXmlExportError, export_workout
 
 
@@ -306,7 +311,7 @@ class TreadmillApp:
         self.make_button(file_actions, text="Export to QZ XML",
                          command=self.export_qz_xml).pack(side="left", padx=5)
 
-
+        self.create_qz_controls()
         summary_bar = ttk.Frame(self.root, padding=(12, 0, 12, 6))
         summary_bar.pack(fill="x")
         self.summary = tk.StringVar()
@@ -1201,6 +1206,85 @@ class TreadmillApp:
         show = messagebox.showerror if report.has_blockers else messagebox.showwarning
         show("Commercial LE compatibility", report.text())
         return report
+
+    def create_qz_controls(self):
+        panel = ttk.Frame(self.root, padding=(12, 0, 12, 6))
+        panel.pack(fill="x")
+        self.qz_address = tk.StringVar(master=self.root, value="")
+        self.qz_status = tk.StringVar(master=self.root, value="Enter the address shown by QZ.")
+        self.qz_result = None
+        ttk.Label(panel, text="QZ address:").grid(row=0, column=0, sticky="w")
+        address_entry = ttk.Entry(panel, textvariable=self.qz_address, width=24)
+        address_entry.grid(row=0, column=1, sticky="ew", padx=6)
+        test_button = self.make_button(panel, text="Test Connection", role="Secondary",
+                                       command=self.test_qz_connection)
+        test_button.grid(row=0, column=2, padx=(0, 6))
+        send_button = self.make_button(panel, text="Send to QZ", command=self.send_to_qz)
+        send_button.grid(row=0, column=3)
+        self.qz_controls = (address_entry, test_button, send_button)
+        panel.columnconfigure(1, weight=1)
+        status = ttk.Label(panel, textvariable=self.qz_status, justify="left")
+        status.grid(row=1, column=0, columnspan=4, sticky="w", pady=(3, 0))
+        panel.bind("<Configure>", lambda event: status.configure(
+            wraplength=max(1, event.width - 24)
+        ))
+        self.qz_address.trace_add("write", lambda *_: self.qz_status.set(
+            "Address changed. Test the connection or send a workout."
+        ))
+
+    def test_qz_connection(self):
+        if self.qz_result is None:
+            self.start_qz_operation(check_connection, "Testing QZ connection…")
+
+    def send_to_qz(self):
+        if self.qz_result is not None:
+            return
+        if not self.qz_address.get().strip():
+            self.qz_status.set("Enter the address shown by QZ.")
+            return
+        name = self.workout_name.get().strip() or DEFAULT_WORKOUT_NAME
+        try:
+            payload = build_save_payload({"workout_name": name, "blocks": self.blocks}, name=name)
+        except (ProfileCompatibilityError, QzXmlExportError) as error:
+            self.qz_status.set(f"Workout not sent. {error}")
+            return
+        self.start_qz_operation(save_training_program, "Sending workout to QZ…", payload)
+
+    def start_qz_operation(self, operation, status, *args):
+        address = self.qz_address.get().strip()
+        if not address:
+            self.qz_status.set("Enter the address shown by QZ.")
+            return
+        result = self.qz_result = SimpleQueue()
+        for widget in self.qz_controls:
+            widget.state(["disabled"])
+        self.qz_status.set(status)
+
+        def work():
+            try:
+                receipt = asyncio.run(operation(address, *args))
+                if receipt is None:
+                    result.put("QZ connection successful.")
+                else:
+                    result.put(f"Saved in QZ: {receipt.name} ({receipt.row_count} rows).")
+            except (QzConnectionError, QzSaveUncertainError) as error:
+                result.put(str(error))
+            except Exception:
+                result.put("QZ operation interrupted. Check QZ before trying again.")
+
+        Thread(target=work, daemon=True).start()
+        self.root.after(50, self.poll_qz_operation)
+
+    def poll_qz_operation(self):
+        try:
+            message = self.qz_result.get_nowait()
+        except Empty:
+            self.root.after(50, self.poll_qz_operation)
+            return
+        self.qz_result = None
+        for widget in self.qz_controls:
+            widget.state(["!disabled"])
+        self.qz_status.set(message)
 
     def confirm_qz_preview(self, title, result):
         summary, details = qz_preview(result)
