@@ -439,19 +439,19 @@ class TreadmillApp:
         )
         self.block_name = tk.StringVar(value="New Block")
         ttk.Entry(
-            block_frame, textvariable=self.block_name, width=22
-        ).grid(row=1, column=0, padx=5, pady=5)
+            block_frame, textvariable=self.block_name, width=16
+        ).grid(row=0, column=1, padx=5, pady=3, sticky="w")
 
         ttk.Label(block_frame, text="Repetitions:").grid(
-            row=0, column=1, padx=5, sticky="w"
+            row=0, column=2, padx=(8, 4), sticky="w"
         )
         self.block_repetitions = tk.StringVar(value="1")
         ttk.Entry(
-            block_frame, textvariable=self.block_repetitions, width=8
-        ).grid(row=1, column=1, padx=5, pady=5)
+            block_frame, textvariable=self.block_repetitions, width=4
+        ).grid(row=0, column=3, padx=(0, 5), pady=3, sticky="w")
 
         block_actions = ttk.Frame(block_frame)
-        block_actions.grid(row=2, column=0, columnspan=2, sticky="w")
+        block_actions.grid(row=1, column=0, columnspan=4, sticky="w")
 
         self.make_button(
             block_actions, text="Add Block", role="Success", command=self.add_block
@@ -500,7 +500,7 @@ class TreadmillApp:
             state="readonly",
             width=15,
         )
-        preset_menu.grid(row=1, column=0, padx=5, pady=5)
+        preset_menu.grid(row=1, column=0, padx=5, pady=5, sticky="w")
         preset_menu.bind("<<ComboboxSelected>>", self.apply_preset)
 
         ttk.Label(input_frame, text="Segment name:").grid(
@@ -511,18 +511,18 @@ class TreadmillApp:
             input_frame, textvariable=self.segment_name, width=15
         ).grid(row=1, column=1, padx=5, pady=5)
 
-        ttk.Label(input_frame, text="Set by:").grid(
-            row=2, column=0, padx=5, sticky="w"
-        )
+        mode_fields = ttk.Frame(input_frame)
+        mode_fields.grid(row=2, column=0, rowspan=2, padx=5, sticky="w")
+        ttk.Label(mode_fields, text="Set by:").grid(row=0, column=0, sticky="w")
         self.measure_mode = tk.StringVar(value="Time")
         mode_menu = ttk.Combobox(
-            input_frame,
+            mode_fields,
             textvariable=self.measure_mode,
             values=("Time", "Distance"),
             state="readonly",
             width=10,
         )
-        mode_menu.grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        mode_menu.grid(row=1, column=0, pady=5, sticky="w")
         mode_menu.bind("<<ComboboxSelected>>", self.update_measure_label)
 
         self.measure_label = ttk.Label(input_frame, text="Duration (min):")
@@ -534,37 +534,41 @@ class TreadmillApp:
         self.measure_entry.grid(row=3, column=1, padx=5, pady=5, sticky="w")
 
         self.distance_unit = tk.StringVar(value="km")
-        self.distance_unit_label = ttk.Label(input_frame, text="Unit:")
-        self.distance_unit_label.grid(row=2, column=2, padx=3, sticky="w")
+        self.distance_unit_label = ttk.Label(mode_fields, text="Unit:")
+        self.distance_unit_label.grid(row=0, column=1, padx=(4, 0), sticky="w")
         self.distance_unit_menu = ttk.Combobox(
-            input_frame,
+            mode_fields,
             textvariable=self.distance_unit,
             values=("km", "m"),
             state="readonly",
             width=3,
         )
-        self.distance_unit_menu.grid(row=3, column=2, padx=3, pady=5, sticky="w")
+        self.distance_unit_menu.grid(row=1, column=1, padx=(4, 0), pady=5, sticky="w")
+        mode_fields.columnconfigure(
+            1, minsize=max(self.distance_unit_label.winfo_reqwidth(),
+                           self.distance_unit_menu.winfo_reqwidth()) + 4,
+        )
         self.distance_unit_label.grid_remove()
         self.distance_unit_menu.grid_remove()
 
         ttk.Label(input_frame, text="Speed (km/h):").grid(
-            row=0, column=3, padx=5, sticky="w"
+            row=0, column=2, padx=5, sticky="w"
         )
         self.speed = tk.StringVar(value="6")
         ttk.Entry(input_frame, textvariable=self.speed, width=7).grid(
-            row=1, column=3, padx=5, pady=5, sticky="w"
+            row=1, column=2, padx=5, pady=5, sticky="w"
         )
 
         ttk.Label(input_frame, text="Incline (%):").grid(
-            row=2, column=3, padx=5, sticky="w"
+            row=2, column=2, padx=5, sticky="w"
         )
         self.incline = tk.StringVar(value="1")
         ttk.Entry(input_frame, textvariable=self.incline, width=7).grid(
-            row=3, column=3, padx=5, pady=5, sticky="w"
+            row=3, column=2, padx=5, pady=5, sticky="w"
         )
 
         segment_commands = ttk.Frame(input_frame)
-        segment_commands.grid(row=4, column=0, columnspan=4, sticky="w")
+        segment_commands.grid(row=4, column=0, columnspan=3, sticky="w")
         self.add_segment_button = self.make_button(
             segment_commands, text="Add Segment", role="Compact.Success",
             command=self.add_segment
@@ -585,10 +589,6 @@ class TreadmillApp:
         self.root.after_idle(self._set_workspace_min_width)
 
     def _set_workspace_min_width(self):
-        # Reserve room for the distance controls even when Time is selected.
-        unit_width = max(self.distance_unit_label.winfo_reqwidth(),
-                         self.distance_unit_menu.winfo_reqwidth()) + 6
-        self.measure_entry.master.columnconfigure(2, minsize=unit_width)
         self.root.update_idletasks()
         # Include the workspace scrollbar and the table's frame and scrollbar.
         width = max(900, self.editor_panel.winfo_reqwidth() + self.tree_min_width + 108)
