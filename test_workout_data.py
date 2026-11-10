@@ -229,6 +229,14 @@ class EditorIntegrationTests(unittest.TestCase):
         self.assertEqual(len(editor.blocks[0]["segments"]), 3)
         editor.refresh_tree.assert_called_once()
 
+    def test_open_workout_uses_filename_for_default_title(self):
+        editor = self.make_editor()
+        with patch("app.filedialog.askopenfilename",
+                   return_value=str(ROOT / "examples/3x3000mt.json")), \
+                patch("app.messagebox.showinfo"):
+            editor.open_workout()
+        editor.workout_name.set.assert_called_once_with("3x3000mt")
+
     def test_ui_input_uses_the_same_validation(self):
         editor = self.make_editor()
         for name, value in (("segment_name", "Easy"), ("measure_mode", "Time"),
@@ -280,13 +288,16 @@ class EditorIntegrationTests(unittest.TestCase):
 
     def test_saved_json_uses_v4_and_can_be_reopened(self):
         editor = self.make_editor()
+        editor.workout_name.get.return_value = "Tempo: 3/2"
         destination = unittest.mock.mock_open()
-        with patch("app.filedialog.asksaveasfilename", return_value="output.json"), \
+        with patch("app.filedialog.asksaveasfilename", return_value="output.json") as dialog, \
                 patch("builtins.open", destination), patch("app.messagebox.showinfo"):
             editor.save_workout()
+        self.assertEqual(dialog.call_args.kwargs["initialfile"], "Tempo_ 3_2.json")
         text = destination().write.call_args.args[0]
         data = json.loads(text)
         self.assertEqual(data["format_version"], 4)
+        self.assertEqual(data["workout_name"], "Tempo: 3/2")
         self.assertEqual(normalize_workout(data), data)
 
     def test_python_sources_parse_without_bytecode_files(self):

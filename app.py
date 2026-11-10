@@ -4,6 +4,7 @@ from tkinter import font as tkfont
 import json
 import copy
 import os
+import re
 import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -18,6 +19,7 @@ from qz_xml_export import QzXmlExportError, export_workout
 
 BRAND_ASSETS = Path(__file__).resolve().parent / "assets" / "brand"
 UI_FONT = "Segoe UI"
+DEFAULT_WORKOUT_NAME = "My Running Workout"
 
 
 def write_qz_xml(path, xml, *, overwrite):
@@ -281,7 +283,7 @@ class TreadmillApp:
         name_frame.pack(side="left", fill="x", expand=True, padx=(16, 0))
 
         ttk.Label(name_frame, text="Workout name:").pack(side="left")
-        self.workout_name = tk.StringVar(value="My Running Workout")
+        self.workout_name = tk.StringVar(value=DEFAULT_WORKOUT_NAME)
         ttk.Entry(
             name_frame, textvariable=self.workout_name, width=24
         ).pack(side="left", fill="x", expand=True, padx=(8, 0))
@@ -1322,8 +1324,16 @@ class TreadmillApp:
             messagebox.showerror("Save Error", str(error))
             return
 
+        filename = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", workout["workout_name"])
+        filename = filename[:120].strip(" .") or DEFAULT_WORKOUT_NAME
+        if filename.lower().endswith(".json"):
+            filename = filename[:-5].rstrip(" .") or DEFAULT_WORKOUT_NAME
+        if re.fullmatch(r"CON|PRN|AUX|NUL|(?:COM|LPT)[1-9¹²³]",
+                        filename.split(".", 1)[0], re.IGNORECASE):
+            filename = "_" + filename
         path = filedialog.asksaveasfilename(
             title="Save Workout",
+            initialfile=f"{filename}.json",
             defaultextension=".json",
             filetypes=[("JSON files", "*.json")],
         )
@@ -1357,7 +1367,11 @@ class TreadmillApp:
 
             validated = normalize_workout(workout)
             self.blocks = validated["blocks"]
-            self.workout_name.set(validated["workout_name"])
+            name = validated["workout_name"].strip()
+            self.workout_name.set(
+                Path(path).stem if not name or name == DEFAULT_WORKOUT_NAME
+                else validated["workout_name"]
+            )
             self.reset_block_editor()
             self.reset_segment_editor()
             self.refresh_tree()
