@@ -187,6 +187,7 @@ class TreadmillApp:
         style.map("Danger.TButton", background=[("active", "#B94659")])
         style.configure("Success.TButton", background=self.colors["green"], foreground="#ffffff",
                         bordercolor=self.colors["green"])
+        style.configure("Compact.Success.TButton", padding=(7, 4))
         style.map("Success.TButton", background=[("active", "#28785A")])
         style.configure("Treeview", background=self.colors["input"],
                         fieldbackground=self.colors["input"], foreground=fg,
@@ -505,7 +506,7 @@ class TreadmillApp:
         ).grid(row=1, column=1, padx=5, pady=5)
 
         ttk.Label(input_frame, text="Set by:").grid(
-            row=0, column=2, padx=5, sticky="w"
+            row=2, column=0, padx=5, sticky="w"
         )
         self.measure_mode = tk.StringVar(value="Time")
         mode_menu = ttk.Combobox(
@@ -515,20 +516,20 @@ class TreadmillApp:
             state="readonly",
             width=10,
         )
-        mode_menu.grid(row=1, column=2, padx=5, pady=5)
+        mode_menu.grid(row=3, column=0, padx=5, pady=5, sticky="w")
         mode_menu.bind("<<ComboboxSelected>>", self.update_measure_label)
 
         self.measure_label = ttk.Label(input_frame, text="Duration (min):")
-        self.measure_label.grid(row=0, column=3, padx=5, sticky="w")
+        self.measure_label.grid(row=2, column=1, padx=5, sticky="w")
         self.measure_value = tk.StringVar(value="10")
         self.measure_entry = ttk.Entry(
             input_frame, textvariable=self.measure_value, width=10
         )
-        self.measure_entry.grid(row=1, column=3, padx=5, pady=5)
+        self.measure_entry.grid(row=3, column=1, padx=5, pady=5, sticky="w")
 
         self.distance_unit = tk.StringVar(value="km")
         self.distance_unit_label = ttk.Label(input_frame, text="Distance unit:")
-        self.distance_unit_label.grid(row=2, column=0, padx=5, sticky="w")
+        self.distance_unit_label.grid(row=2, column=2, padx=5, sticky="w")
         self.distance_unit_menu = ttk.Combobox(
             input_frame,
             textvariable=self.distance_unit,
@@ -536,36 +537,37 @@ class TreadmillApp:
             state="readonly",
             width=6,
         )
-        self.distance_unit_menu.grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        self.distance_unit_menu.grid(row=3, column=2, padx=5, pady=5, sticky="w")
         self.distance_unit_label.grid_remove()
         self.distance_unit_menu.grid_remove()
 
         ttk.Label(input_frame, text="Speed (km/h):").grid(
-            row=2, column=1, padx=5, sticky="w"
+            row=0, column=3, padx=5, sticky="w"
         )
         self.speed = tk.StringVar(value="6")
         ttk.Entry(input_frame, textvariable=self.speed, width=10).grid(
-            row=3, column=1, padx=5, pady=5
+            row=1, column=3, padx=5, pady=5, sticky="w"
         )
 
         ttk.Label(input_frame, text="Incline (%):").grid(
-            row=2, column=2, padx=5, sticky="w"
+            row=2, column=3, padx=5, sticky="w"
         )
         self.incline = tk.StringVar(value="1")
         ttk.Entry(input_frame, textvariable=self.incline, width=8).grid(
-            row=3, column=2, padx=5, pady=5
+            row=3, column=3, padx=5, pady=5, sticky="w"
         )
 
         segment_commands = ttk.Frame(input_frame)
         segment_commands.grid(row=4, column=0, columnspan=4, sticky="w")
         self.add_segment_button = self.make_button(
-            segment_commands, text="Add Segment", role="Success", command=self.add_segment
+            segment_commands, text="Add Segment", role="Compact.Success",
+            command=self.add_segment
         )
         self.add_segment_button.pack(side="left", padx=4)
 
         self.update_segment_button = self.make_button(
             segment_commands,
-            text="Update Segment", role="Success",
+            text="Update Segment", role="Compact.Success",
             command=self.update_segment,
             state="disabled",
         )
@@ -978,7 +980,7 @@ class TreadmillApp:
             block_distance = sum(seg["estimated_distance_km"] for seg in entry["segments"])
             block_id = f"block_{block_index}"
             self.tree.insert("", "end", iid=block_id,
-                text=f"{repetitions}×  {entry['name']}", values=(
+                text=f"{repetitions}×{entry['name']}", values=(
                     f"{block_duration * repetitions:.2f}", "-", "-", f"{block_distance * repetitions:.2f}"
                 ), open=True, tags=("block",))
             self.tree_item_data[block_id] = {"kind": "block", "block": entry}
