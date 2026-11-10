@@ -399,10 +399,10 @@ class TreadmillApp:
         self.tree.heading("distance", text="Distance (km)")
 
         self.tree.column("#0", width=215)
-        self.tree.column("duration", width=108, anchor="center")
-        self.tree.column("speed", width=108, anchor="center")
-        self.tree.column("incline", width=90, anchor="center")
-        self.tree.column("distance", width=108, anchor="center")
+        self.tree.column("duration", width=108, anchor="e")
+        self.tree.column("speed", width=108, anchor="e")
+        self.tree.column("incline", width=90, anchor="e")
+        self.tree.column("distance", width=108, anchor="e")
 
         scrollbar = ttk.Scrollbar(
             tree_frame, orient="vertical", command=self.tree.yview
@@ -527,6 +527,8 @@ class TreadmillApp:
         self.measure_entry.grid(row=1, column=3, padx=5, pady=5)
 
         self.distance_unit = tk.StringVar(value="km")
+        self.distance_unit_label = ttk.Label(input_frame, text="Distance unit:")
+        self.distance_unit_label.grid(row=2, column=0, padx=5, sticky="w")
         self.distance_unit_menu = ttk.Combobox(
             input_frame,
             textvariable=self.distance_unit,
@@ -535,6 +537,7 @@ class TreadmillApp:
             width=6,
         )
         self.distance_unit_menu.grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        self.distance_unit_label.grid_remove()
         self.distance_unit_menu.grid_remove()
 
         ttk.Label(input_frame, text="Speed (km/h):").grid(
@@ -618,9 +621,11 @@ class TreadmillApp:
     def update_measure_label(self, event=None):
         if self.measure_mode.get() == "Distance":
             self.measure_label.config(text="Distance:")
+            self.distance_unit_label.grid()
             self.distance_unit_menu.grid()
         else:
             self.measure_label.config(text="Duration (min):")
+            self.distance_unit_label.grid_remove()
             self.distance_unit_menu.grid_remove()
 
     def apply_preset(self, event=None):
@@ -645,7 +650,7 @@ class TreadmillApp:
                 "incline_percent": self.incline.get(),
             })
         except ValueError as error:
-            messagebox.showerror("Invalid input", str(error))
+            messagebox.showerror("Invalid segment", str(error))
             return None
 
     def get_block_values(self):
@@ -654,7 +659,7 @@ class TreadmillApp:
                 self.block_name.get(), self.block_repetitions.get()
             )
         except ValueError as error:
-            messagebox.showerror("Invalid input", str(error))
+            messagebox.showerror("Invalid block", str(error))
             return None
 
     def normalize_segment(self, segment):
@@ -973,7 +978,7 @@ class TreadmillApp:
             block_distance = sum(seg["estimated_distance_km"] for seg in entry["segments"])
             block_id = f"block_{block_index}"
             self.tree.insert("", "end", iid=block_id,
-                text=f"{entry['name']} ({repetitions} repetitions)", values=(
+                text=f"{repetitions}×  {entry['name']}", values=(
                     f"{block_duration * repetitions:.2f}", "-", "-", f"{block_distance * repetitions:.2f}"
                 ), open=True, tags=("block",))
             self.tree_item_data[block_id] = {"kind": "block", "block": entry}
