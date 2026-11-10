@@ -1,18 +1,18 @@
 # TreadCraft
 
-TreadCraft is a Windows desktop app for building treadmill workouts from individual segments and repeatable blocks. Save workouts as editable JSON or export them as QZ (qdomyos-zwift) XML from the app.
+TreadCraft is a Windows desktop app for building treadmill workouts from individual segments and repeatable blocks. Save workouts as editable JSON, export them as QZ (qdomyos-zwift) XML, or send them directly to QZ Android over local Wi-Fi.
 
 ![TreadCraft on Windows showing the 3 × 3000 m workout, with the workout table on the left and the segment and block editors on the right](docs/images/treadcraft-v0.3.0-windows.PNG)
 
 The v0.2.0 redesign adds the TreadCraft branding and a compact layout. The main commands and workout totals stay above the scrollable editor. The window sets its minimum width at startup based on the space needed for the table headings and editor at the current display scaling.
 
-See the [changelog](CHANGELOG.md) and the [v0.2.0 release notes](RELEASE_NOTES_v0.2.0.md).
+See the [changelog](CHANGELOG.md) and the [draft v0.4.0 release notes](RELEASE_NOTES_v0.4.0.md).
 
 ## Run on Windows from the portable ZIP
 
-The v0.3.0 portable package is for **Windows x64**. It includes Python and Tkinter and requires no installer.
+The portable package is for **Windows x64**. It includes the runtime and requires no installer or Python installation. Use the v0.4.0 source instructions below to try direct Wi-Fi transfer while the v0.4.0 portable package is pending.
 
-1. On the [GitHub Releases page](https://github.com/daniel91universe/treadcraft/releases), select the v0.3.0 **Windows x64 portable ZIP** when available. GitHub's **Source code (zip)** is for the Python launch instructions below.
+1. On the GitHub Releases page, select the **Windows x64 portable ZIP** for the version you want. GitHub's **Source code (zip)** is for the Python launch instructions below. [GitHub Releases](https://github.com/daniel91universe/treadcraft/releases)
 2. In File Explorer, right-click the portable ZIP and choose **Extract All**.
 3. Open the extracted `TreadCraft` folder and double-click `TreadCraft.exe`. Keep the `_internal` folder beside the executable.
 4. To try the app, open `examples\3x3000mt.json` with **Open Workout**. Save your workouts and exports to a folder you can write to, such as Documents.
@@ -25,10 +25,11 @@ Use Python 3.12 with Tkinter, the configuration tested on Windows. In the Python
 
 ```powershell
 py -3.12 -m tkinter
+py -3.12 -m pip install -r requirements.txt
 py -3.12 app.py
 ```
 
-The first command opens a Tkinter test window. Close it before launching the app. If you use `python` instead of the Windows launcher, check that `python --version` reports 3.12 and replace `py -3.12` with `python` throughout this guide.
+The first command opens a Tkinter test window. Close it before continuing. Install the dependencies before going offline if pip needs to download them. If you use `python` instead of the Windows launcher, check that `python --version` reports 3.12 and replace `py -3.12` with `python` throughout this guide.
 
 ## Create a workout
 
@@ -40,7 +41,15 @@ The first command opens a Tkinter test window. Close it before launching the app
 
 Try the included [3 × 3000 m workout](examples/3x3000mt.json) with **Open Workout**.
 
-## Export for QZ
+## Send a workout to QZ over Wi-Fi
+
+1. Connect the Windows PC and Android device to the same Wi-Fi network. The transfer was verified with **QZ Android 2.20.29** on a local network without Internet access.
+2. In QZ, use **Open Floating on a Browser** to get the current URL ending in `/floating/floating.htm`. Return to QZ and keep it in the foreground during the transfer.
+3. Paste the full URL into **QZ address** in TreadCraft and click **Test Connection**. Wait for **QZ verified.** TreadCraft remembers the last verified address on this Windows account.
+4. Open a workout and click **Send to QZ**. Wait for **Saved in QZ** and note the program name and row count in the confirmation. Open that program in QZ to review it. With the included 3 × 3000 m example, expect **8 rows**, with **3 km** in rows **2, 4, and 6**. Sending saves the program in QZ for review.
+5. After restarting TreadCraft, use **Reconnect to QZ** to verify the saved address again. If QZ's IP address or port has changed, paste the current URL and run **Test Connection**. Use **Cancel** to stop a connection check while it is in progress.
+
+## Export QZ XML
 
 1. Open a workout in TreadCraft with **Open Workout**. To try the export, use [examples/3x3000mt.json](examples/3x3000mt.json).
 2. Click **Export to QZ XML**. Review the row counts, scheduled duration, estimated duration for distance segments, and compatibility warnings. The example shows 8 rows, including 5 timed and 3 distance segments.
@@ -58,9 +67,9 @@ To export the example instead, replace `workout.json` in the command with `examp
 
 Distance-based segments retain their `distance` in kilometers as the end criterion. The exporter also adds an estimated `duration` for the QZ preview, calculated from the distance and target speed and rounded to the nearest second. For example, a 3 km repeat at 14 km/h has `distance="3"` and `duration="00:12:51"`. If the estimate falls outside QZ's duration range after rounding, the exporter keeps the distance and emits a warning.
 
-The example XML was opened manually and displayed in QZ Android 2.20.29 without a treadmill connected. Direct Wi-Fi delivery from TreadCraft to QZ is planned for a future version. For this version, transfer the exported file separately and open it from the QZ file picker.
+The example XML was also opened manually in QZ Android 2.20.29 without a treadmill connected. XML export remains available for transferring the file separately and opening it through the QZ file picker.
 
-Commercial LE compatibility is preliminary. Connection, actual speed reporting, automatic speed changes, incline response, time and distance transitions, and pause, resume, and stop behavior still need verification on the treadmill.
+Commercial LE compatibility is preliminary. Hardware testing still needs to cover treadmill connection to QZ, actual speed reporting and automatic speed changes, positive incline response and whether decline is supported, time and distance transitions, and pause, resume, and stop. The current profile blocks negative incline.
 
 ## Run the tests
 
