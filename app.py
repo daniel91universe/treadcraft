@@ -218,8 +218,7 @@ class TreadmillApp:
             self.root.iconbitmap(default=str(BRAND_ASSETS / "TreadCraft.ico"))
         except tk.TclError:
             pass  # Keep the platform icon if the ICO is unavailable.
-        if sys.platform == "win32" and self.root.winfo_fpixels("1i") <= 97:
-            self.root.after_idle(self.set_windows_title_icon)
+        self.set_windows_icons(self.root)
         try:
             return tk.PhotoImage(
                 master=self.root,
@@ -228,35 +227,10 @@ class TreadmillApp:
         except tk.TclError:
             return None
 
-    def set_windows_title_icon(self):
-        import ctypes
-        from ctypes import wintypes
-
-        user32 = ctypes.WinDLL("user32")
-        load = user32.LoadImageW
-        load.argtypes = (wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.UINT,
-                         ctypes.c_int, ctypes.c_int, wintypes.UINT)
-        load.restype = wintypes.HANDLE
-        icon = load(None, str(BRAND_ASSETS / "TreadCraft-title-16.ico"),
-                    1, 16, 16, 0x0010)  # IMAGE_ICON, LR_LOADFROMFILE
-        if not icon:
-            return
-
-        # "wm frame" returns the native wrapper that owns the title bar.
-        hwnd = int(self.root.frame(), 0)
-        set_class = getattr(user32, "SetClassLongPtrW", None) or user32.SetClassLongW
-        set_class.argtypes = (wintypes.HWND, ctypes.c_int, ctypes.c_void_p)
-        set_class.restype = ctypes.c_void_p
-        previous = set_class(hwnd, -34, icon)  # GCLP_HICONSM
-        destroy = user32.DestroyIcon
-        destroy.argtypes = (wintypes.HANDLE,)
-        destroy.restype = wintypes.BOOL
-        def release(event):
-            if event.widget is self.root:
-                set_class(hwnd, -34, previous)
-                destroy(icon)
-
-        self.root.bind("<Destroy>", release, add="+")
+    def set_windows_icons(self, window):
+        if sys.platform == "win32":
+            from windows_icons import WindowsIcons
+            window.windows_icons = WindowsIcons(window, BRAND_ASSETS / "TreadCraft.ico")
 
     def segment_colour_tag(self, segment):
         name = segment.get("name", "").lower()
@@ -1355,6 +1329,7 @@ class TreadmillApp:
         dialog.withdraw()
         dialog.title(title)
         dialog.transient(self.root)
+        self.set_windows_icons(dialog)
         dialog.minsize(520, 360)
         panel = ttk.Frame(dialog, padding=16)
         panel.pack(fill="both", expand=True)
@@ -1522,7 +1497,14 @@ class TreadmillApp:
             self.reset_segment_editor()
             self.refresh_tree()
             self.update_summary()
-            messagebox.showinfo("Workout Loaded", "Workout loaded successfully.")
+            show = messagebox.showinfo
+            icons = getattr(getattr(self, "root", None), "windows_icons", None)
+            if icons is not None:
+                icons.show_message(
+                    show, "Workout Loaded", "Workout loaded successfully.", parent=self.root,
+                )
+            else:
+                show("Workout Loaded", "Workout loaded successfully.")
 
         except (
             OSError,
