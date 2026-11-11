@@ -27,4 +27,16 @@ L'11 novembre 2026 l'utente ha confermato l'esito positivo della prova su un tab
 
 La suite sulla copia del sorgente usata per la build aveva superato **95 test**. La prova sul tablet è stata eseguita dall'utente con il portable.
 
+## Verifica dello ZIP pubblico v0.4.0
+
+L'11 novembre 2026 è stato verificato lo ZIP pubblico `TreadCraft-v0.4.0-Windows-x64-cd978aa.zip`. Il checksum SHA-256 coincide con quello del candidato provato sul tablet e l'eseguibile estratto si avvia su Windows.
+
+La cattura della finestra del portable pubblico è fallita, impedendo la prova dei pulsanti di riconnessione e invio. È stata quindi eseguita una verifica separata con il sorgente esatto del commit di build `cd978aa` e l'esempio **3×3000 m** contenuto nello ZIP pubblico.
+
+- QZ Android **2.20.29** ha risposto al comando di riconoscimento sul nuovo indirizzo locale e ha confermato il salvataggio del programma con **8 righe**.
+- Il programma inviato si chiama `3x3000m-public-v0-4-0-verification-15d5dce9bb8649d480caa170dfe0ffd4`.
+- L'utente ha verificato in QZ **8 righe** e, nell'XML ricevuto, `distance="3"` alle righe **2, 4 e 6**.
+
+La verifica del trasferimento e dell'integrità del programma ricevuto è positiva. **La prova dei pulsanti del portable pubblico resta incompleta**. La precedente prova positiva del candidato sul tablet rimane documentata separatamente.
+
 Le transizioni e il controllo del tapis roulant restano da verificare con l'hardware collegato.
