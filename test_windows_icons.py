@@ -1,6 +1,9 @@
+import ctypes
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
+import windows_icons
 from windows_icons import WindowsIcons
 
 
@@ -116,6 +119,7 @@ class WindowsIconTests(unittest.TestCase):
         self.assertFalse(self.window.pending)
         self.assertEqual(self.api.destroyed, [])
 
+
     def test_message_uses_owned_icons_and_preserves_result(self):
         calls = []
         def show(title, *, parent):
@@ -127,3 +131,125 @@ class WindowsIconTests(unittest.TestCase):
         self.assertEqual(self.api.message_icons, (0x123, (200, 201)))
         self.assertEqual(calls, [("Workout Loaded", self.window)])
         self.assertEqual(self.api.destroyed, [])
+
+
+class NativeFunction:
+    def __init__(self, function):
+        self.function = function
+
+    def __call__(self, *args):
+        return self.function(*args)
+
+
+class NativeHookTests(unittest.TestCase):
+    def setUp(self):
+        self.assertFalse(windows_icons._pending_hooks)
+        self.callbacks = []
+        self.removals = []
+        self.unhook_results = []
+        self.assignments = []
+        self.next_hook = 100
+        self.user = SimpleNamespace(
+            SetWindowsHookExW=NativeFunction(self.install),
+            UnhookWindowsHookEx=NativeFunction(self.unhook),
+            CallNextHookEx=NativeFunction(lambda *args: 17),
+            GetWindow=NativeFunction(lambda *args: 0x123),
+            GetClassNameW=NativeFunction(self.class_name),
+            SendMessageW=NativeFunction(self.assign),
+        )
+        kernel = SimpleNamespace(GetCurrentThreadId=NativeFunction(lambda: 7))
+        self.api = windows_icons._WindowsAPI.__new__(windows_icons._WindowsAPI)
+        self.api.user32 = self.user
+        for context in (
+            patch.object(ctypes, "WinDLL", return_value=kernel, create=True),
+            patch.object(ctypes, "WINFUNCTYPE", ctypes.CFUNCTYPE, create=True),
+            patch.object(ctypes, "get_last_error", return_value=5, create=True),
+        ):
+            context.start()
+            self.addCleanup(context.stop)
+
+    def tearDown(self):
+        # All native functions in these tests are simulated.
+        windows_icons._pending_hooks.clear()
+
+    def install(self, kind, callback, instance, thread):
+        self.callbacks.append(callback)
+        self.next_hook += 1
+        return self.next_hook
+
+    def unhook(self, hook):
+        self.removals.append(hook)
+        return self.unhook_results.pop(0) if self.unhook_results else True
+
+    def class_name(self, hwnd, buffer, length):
+        buffer.value = "#32770"
+        return len(buffer.value)
+
+    def assign(self, hwnd, message, kind, handle):
+        self.assignments.append((kind, handle))
+        return 0
+
+    def show(self, function=lambda: "ok"):
+        return self.api.show_message(0x123, (200, 201), function)
+
+    def test_success_removes_hook_and_preserves_result(self):
+        def message():
+            self.assertEqual(self.callbacks[-1](5, 0x456, 0), 17)
+            return "ok"
+        self.assertEqual(self.show(message), "ok")
+        self.assertEqual(self.assignments, [(0, 200), (1, 201)])
+        self.assertEqual(self.removals, [101])
+        self.assertFalse(windows_icons._pending_hooks)
+
+    def test_exception_still_removes_hook(self):
+        failure = RuntimeError("message failed")
+        def message():
+            raise failure
+        with self.assertRaises(RuntimeError) as caught:
+            self.show(message)
+        self.assertIs(caught.exception, failure)
+        self.assertEqual(self.removals, [101])
+        self.assertFalse(windows_icons._pending_hooks)
+
+    def test_unhook_failure_retains_disabled_callback(self):
+        self.unhook_results = [False]
+        with self.assertLogs("windows_icons", level="WARNING") as logs:
+            self.assertEqual(self.show(), "ok")
+        self.assertIn("Windows error 5", logs.output[0])
+        callback = windows_icons._pending_hooks[(7, 101)]
+        self.callbacks.clear()
+        self.assertEqual(callback(5, 0x456, 0), 17)
+        self.assertFalse(self.assignments)
+
+    def test_unhook_failure_preserves_original_exception(self):
+        self.unhook_results = [False]
+        failure = RuntimeError("message failed")
+        def message():
+            raise failure
+        with self.assertLogs("windows_icons"), self.assertRaises(RuntimeError) as caught:
+            self.show(message)
+        self.assertIs(caught.exception, failure)
+        self.assertIn((7, 101), windows_icons._pending_hooks)
+
+    def test_next_message_retries_removal(self):
+        self.unhook_results = [False, True, True]
+        with self.assertLogs("windows_icons"):
+            self.show()
+        self.assertEqual(self.show(), "ok")
+        self.assertEqual(self.removals, [101, 101, 102])
+        self.assertFalse(windows_icons._pending_hooks)
+
+    def test_persistent_failure_does_not_accumulate_hooks(self):
+        self.unhook_results = [False, False]
+        with self.assertLogs("windows_icons"):
+            self.show()
+            self.assertEqual(self.show(), "ok")
+        self.assertEqual(len(self.callbacks), 1)
+        self.assertEqual(list(windows_icons._pending_hooks), [(7, 101)])
+
+    def test_retry_does_not_remove_another_threads_hook(self):
+        foreign_callback = object()
+        windows_icons._pending_hooks[(8, 999)] = foreign_callback
+        self.assertEqual(self.show(), "ok")
+        self.assertEqual(self.removals, [101])
+        self.assertIs(windows_icons._pending_hooks[(8, 999)], foreign_callback)

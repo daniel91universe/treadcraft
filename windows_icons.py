@@ -1,7 +1,29 @@
 """Assign DPI-sized, privately owned Windows icons to a Tk toplevel."""
 
 import ctypes
+import logging
 from ctypes import wintypes
+
+
+# A failed unhook must not leave Windows holding a collected ctypes callback.
+# Retained callbacks are disabled and only forward to the next hook.
+_pending_hooks = {}
+_logger = logging.getLogger(__name__)
+
+
+def _remove_pending_hooks(user, thread_id):
+    for key in tuple(_pending_hooks):
+        owner_thread, hook = key
+        if owner_thread != thread_id:
+            continue
+        if user.UnhookWindowsHookEx(hook):
+            del _pending_hooks[key]
+        else:
+            _logger.warning(
+                "Could not remove icon hook %s (Windows error %s); "
+                "retaining its disabled callback until removal can be retried.",
+                hook, ctypes.get_last_error(),
+            )
 
 
 class _WindowsAPI:
@@ -88,10 +110,16 @@ class _WindowsAPI:
         kernel = ctypes.WinDLL("kernel32")
         kernel.GetCurrentThreadId.argtypes = ()
         kernel.GetCurrentThreadId.restype = wintypes.DWORD
+        thread_id = kernel.GetCurrentThreadId()
+        _remove_pending_hooks(user, thread_id)
+        if any(key[0] == thread_id for key in _pending_hooks):
+            # Avoid accumulating hooks if Windows keeps rejecting removal.
+            return show()
+        active = True
 
         @hook_type
         def on_activate(code, hwnd, data):
-            if code == 5 and user.GetWindow(hwnd, 4) == owner:
+            if active and code == 5 and user.GetWindow(hwnd, 4) == owner:
                 class_name = ctypes.create_unicode_buffer(256)
                 user.GetClassNameW(hwnd, class_name, len(class_name))
                 if class_name.value == "#32770":
@@ -99,12 +127,16 @@ class _WindowsAPI:
                         self.assign(hwnd, kind, handle)
             return user.CallNextHookEx(None, code, hwnd, data)
 
-        hook = user.SetWindowsHookExW(5, on_activate, None, kernel.GetCurrentThreadId())
+        hook = user.SetWindowsHookExW(5, on_activate, None, thread_id)
         try:
             return show()
         finally:
+            # Disable icon access before attempting removal: the parent may
+            # release these borrowed HICONs even if UnhookWindowsHookEx fails.
+            active = False
             if hook:
-                user.UnhookWindowsHookEx(hook)
+                _pending_hooks[(thread_id, hook)] = on_activate
+                _remove_pending_hooks(user, thread_id)
 
 
 class WindowsIcons:
