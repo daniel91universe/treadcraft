@@ -10,7 +10,15 @@ See the [changelog](CHANGELOG.md) and the [draft v0.4.0 release notes](RELEASE_N
 
 ## Run on Windows from the portable ZIP
 
-The portable package is for **Windows x64**. It includes the runtime and requires no installer or Python installation. Use the v0.4.0 source instructions below to try direct Wi-Fi transfer while the v0.4.0 portable package is pending.
+The portable package is for **Windows x64**. It includes the runtime and requires no installer or Python installation. The v0.4.0 candidate has passed the user's test on a Windows tablet without Python. Publication is pending.
+
+The tested candidate is `TreadCraft-v0.4.0-Windows-x64-cd978aa.zip`, built from commit `cd978aa3a3e6752e16724ad17f6d6a13c0a0c5d5`. Its SHA-256 is:
+
+```text
+7dd642467dac7fa0f49bd887890b423f157b0ccc6b45d309235352c23e835da0
+```
+
+With QZ Android **2.20.29**, the tablet test passed startup, reconnection after restart, and transfer of the **3 × 3000 m** workout over local Wi-Fi without Internet or a treadmill. QZ received **8 rows** and preserved all **three 3 km repeats**.
 
 1. On the GitHub Releases page, select the **Windows x64 portable ZIP** for the version you want. GitHub's **Source code (zip)** is for the Python launch instructions below. [GitHub Releases](https://github.com/daniel91universe/treadcraft/releases)
 2. In File Explorer, right-click the portable ZIP and choose **Extract All**.
