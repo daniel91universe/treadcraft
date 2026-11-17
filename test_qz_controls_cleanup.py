@@ -14,11 +14,16 @@ class QzControlsTests(unittest.TestCase):
         except tk.TclError as error:
             self.skipTest(str(error))
         self.root.withdraw()
-        self.addCleanup(self.root.destroy)
+        self.addCleanup(self.close_root)
         self.enterContext(patch('app.DiscoveryControls'))
         self.enterContext(patch('app.load_qz_endpoint', return_value=None))
         self.saved = self.enterContext(patch('app.save_qz_endpoint'))
         self.app = TreadmillApp(self.root)
+
+    def close_root(self):
+        for callback in self.root.tk.call('after', 'info'):
+            self.root.after_cancel(callback)
+        self.root.destroy()
 
     def buttons(self, widget):
         found = []
@@ -32,16 +37,15 @@ class QzControlsTests(unittest.TestCase):
         texts = self.buttons(self.root)
         self.assertNotIn('Test Connection', texts)
         self.assertNotIn('Reconnect to QZ', texts)
-        for text in ('Send to QZ', 'Export XML', 'Manual address…', 'Verify manual address'):
+        for text in ('Send to QZ', 'Export XML', 'QZ Devices'):
             self.assertIn(text, texts)
 
-    def test_manual_section_is_collapsed_and_preserves_address(self):
-        self.assertFalse(self.app.qz_manual_panel.winfo_manager())
+    def test_manual_ui_removed_but_endpoint_configuration_retained(self):
+        self.assertFalse(hasattr(self.app, 'qz_manual_panel'))
+        texts = self.buttons(self.root)
+        self.assertNotIn('Manual address…', texts)
+        self.assertNotIn('Verify manual address', texts)
         self.app.qz_address.set('ws://192.168.1.12:12345/')
-        self.app.toggle_qz_manual()
-        self.assertEqual(self.app.qz_manual_panel.winfo_manager(), 'grid')
-        self.app.toggle_qz_manual()
-        self.assertFalse(self.app.qz_manual_panel.winfo_manager())
         self.assertEqual(self.app.qz_address.get(), 'ws://192.168.1.12:12345/')
 
     def test_internal_manual_verifier_and_reconnect_remain(self):
@@ -85,7 +89,7 @@ class QzControlsTests(unittest.TestCase):
 
     def test_no_endpoint_gives_actionable_message(self):
         self.app.send_to_qz()
-        self.assertIn('Manual address', self.app.qz_status.get())
+        self.assertIn('QZ Devices', self.app.qz_status.get())
 
 
 if __name__ == '__main__':

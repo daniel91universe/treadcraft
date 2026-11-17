@@ -9,7 +9,7 @@ from qz_discovery import discover
 
 
 class DiscoveryControls:
-    def __init__(self, app, panel):
+    def __init__(self, app, panel, *, button=None):
         self.app = app
         self.services = ()
         self.dialog = None
@@ -18,8 +18,11 @@ class DiscoveryControls:
         self.queue = SimpleQueue()
         self.generation = 0
         self.status = tk.StringVar(master=app.root, value="Searching for QZ…")
-        self.button = app.make_button(panel, text="Finding QZ…", role="Secondary", command=self.open)
-        self.button.grid(row=1, column=5, sticky="e")
+        self.button = button if button is not None else app.make_button(
+            panel, text="QZ Devices", role="Secondary")
+        self.button.configure(command=self.open)
+        if button is None:
+            self.button.grid(row=1, column=5, sticky="e")
         app.root.bind("<Destroy>", self.on_destroy, add="+")
         app.root.after(250, self.search)
 
@@ -37,7 +40,6 @@ class DiscoveryControls:
         self.services = ()
         self.render()
         self.status.set("Searching for QZ on this LAN…")
-        self.button.configure(text="Finding QZ…")
         self.cancel = cancel = Event()
 
         def work():
@@ -67,11 +69,10 @@ class DiscoveryControls:
             else:
                 finished = True
                 self.cancel = None
-                self.button.configure(text=f"QZ devices ({len(self.services)})…")
                 if kind == "error":
-                    self.status.set(f"Discovery unavailable: {value} Manual connection is available.")
+                    self.status.set(f"Discovery unavailable: {value} Keep QZ open and check the LAN connection.")
                 elif not self.services:
-                    self.status.set("No QZ found or resolved. Keep QZ open, check the LAN, or use the manual address.")
+                    self.status.set("No QZ found or resolved. Keep QZ open and check the LAN, then search again.")
                 else:
                     self.status.set("Search finished. Discovery alone does not verify a QZ connection.")
         if not finished:

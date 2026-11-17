@@ -270,24 +270,23 @@ class TreadmillApp:
             name_frame, textvariable=self.workout_name, width=24
         ).pack(side="left", fill="x", expand=True, padx=(8, 0))
 
-        # FILE ACTIONS
-        file_actions = ttk.Frame(self.root, padding=(12, 0, 12, 4))
-        file_actions.pack(fill="x")
-
-        self.make_button(
-            file_actions, text="Open Workout", role="Secondary", command=self.open_workout
-        ).pack(side="left", padx=(0, 5))
-
-        self.make_button(
-            file_actions, text="Save Workout", role="Success", command=self.save_workout
-        ).pack(side="left", padx=5)
-        self.make_button(
-            file_actions, text="Check Commercial LE", command=self.check_commercial_le
-        ).pack(side="left", padx=5)
-
-        self.make_button(file_actions, text="Export XML",
-                         command=self.export_qz_xml).pack(side="left", padx=5)
-
+        # Six primary actions in three compact columns.
+        self.main_actions = ttk.Frame(self.root, padding=(12, 0, 12, 4))
+        self.main_actions.pack(fill="x")
+        actions = (
+            ("Open Workout", self.open_workout, "Secondary", 0, 0),
+            ("Save Workout", self.save_workout, "Success", 1, 0),
+            ("Check Commercial LE", self.check_commercial_le, "Primary", 0, 1),
+            ("Export XML", self.export_qz_xml, "Primary", 1, 1),
+            ("QZ Devices", None, "Secondary", 0, 2),
+            ("Send to QZ", self.send_to_qz, "Primary", 1, 2),
+        )
+        self.main_buttons = {}
+        for text, command, role, row, column in actions:
+            button = self.make_button(self.main_actions, text=text, role=role, command=command)
+            button.grid(row=row, column=column, sticky="ew", padx=(0, 6), pady=2)
+            self.main_buttons[text] = button
+            self.main_actions.columnconfigure(column, uniform="actions")
         self.create_qz_controls()
         summary_bar = ttk.Frame(self.root, padding=(12, 0, 12, 6))
         summary_bar.pack(fill="x")
@@ -322,7 +321,7 @@ class TreadmillApp:
 
         # WORKOUT TREE
         self.structure_panel = ttk.LabelFrame(
-            self.content_frame, text="Workout Structure", padding=10
+            self.content_frame, text="Workout Structure", padding=8
         )
 
         # WORKOUT POOL AND SEGMENT ACTIONS
@@ -332,23 +331,6 @@ class TreadmillApp:
         tree_frame = ttk.Frame(pool_content)
         tree_frame.pack(fill="both", expand=True)
 
-        segment_actions = ttk.Frame(pool_content, padding=(0, 6))
-        segment_actions.pack(fill="x", before=tree_frame)
-
-        edit = self.make_button(
-            segment_actions, text="Edit Segment", role="Secondary", command=self.edit_segment
-        )
-
-        duplicate = self.make_button(
-            segment_actions, text="Duplicate Segment", role="Secondary", command=self.duplicate_segment
-        )
-
-        remove = self.make_button(
-            segment_actions, text="Remove Segment", role="Danger", command=self.remove_segment
-        )
-        segment_actions.bind("<Configure>", lambda event: self._wrap_segment_actions(
-            event.width, (edit, duplicate, remove)
-        ))
         columns = ("duration", "speed", "incline", "distance")
         self.tree = ttk.Treeview(
             tree_frame,
@@ -401,6 +383,10 @@ class TreadmillApp:
         horizontal = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
         self.tree.configure(yscrollcommand=scrollbar.set, xscrollcommand=horizontal.set)
         self.tree.grid(row=0, column=0, sticky="nsew")
+        # Overlay only: never insert a placeholder into the workout data/list.
+        self.block_drop_indicator = tk.Frame(
+            self.tree, background=self.colors["foreground"], height=2, takefocus=False
+        )
         scrollbar.grid(row=0, column=1, sticky="ns")
         horizontal.grid(row=1, column=0, sticky="ew")
         tree_frame.rowconfigure(0, weight=1)
@@ -413,10 +399,10 @@ class TreadmillApp:
 
         editor = self.editor_panel = ttk.Frame(self.content_frame)
         # BLOCK EDITOR
-        block_frame = ttk.LabelFrame(
-            editor, text="Workout Blocks", padding=10
+        block_frame = self.block_panel = ttk.LabelFrame(
+            editor, text="Blocks", padding=8
         )
-        block_frame.pack(fill="x", pady=(0, 8))
+        block_frame.pack(fill="x", pady=(0, 4))
 
         ttk.Label(block_frame, text="Block name:").grid(
             row=0, column=0, padx=5, sticky="w"
@@ -451,26 +437,15 @@ class TreadmillApp:
 
         self.make_button(
             block_actions, text="Duplicate Block", role="Secondary", command=self.duplicate_block
-        ).grid(row=0, column=2, padx=4, pady=3, sticky="ew")
+        ).grid(row=1, column=1, padx=4, pady=3, sticky="ew")
         self.make_button(
             block_actions, text="Remove Block", role="Danger", command=self.remove_block
         ).grid(row=1, column=0, padx=4, pady=3, sticky="ew")
-        self.make_button(
-            block_actions,
-            text="Move Block Up",
-            command=lambda: self.move_item(-1, "block"),
-        ).grid(row=1, column=1, padx=4, pady=3, sticky="ew")
-        self.make_button(
-            block_actions,
-            text="Move Block Down",
-            command=lambda: self.move_item(1, "block"),
-        ).grid(row=1, column=2, padx=4, pady=3, sticky="ew")
-
         # SEGMENT EDITOR
-        input_frame = ttk.LabelFrame(
-            editor, text="Add or Edit Segment", padding=10
+        input_frame = self.segment_panel = ttk.LabelFrame(
+            editor, text="Segments", padding=8
         )
-        input_frame.pack(fill="x", pady=(0, 8), before=block_frame)
+        input_frame.pack(fill="x", pady=(0, 6), before=block_frame)
 
         ttk.Label(input_frame, text="Segment type:").grid(
             row=0, column=0, padx=5, sticky="w"
@@ -554,18 +529,24 @@ class TreadmillApp:
         segment_commands = ttk.Frame(input_frame)
         segment_commands.grid(row=4, column=0, columnspan=3, sticky="w")
         self.add_segment_button = self.make_button(
-            segment_commands, text="Add Segment", role="Compact.Success",
+            segment_commands, text="Add Segment", role="Success",
             command=self.add_segment
         )
-        self.add_segment_button.pack(side="left", padx=4)
+        self.add_segment_button.grid(row=0, column=0, padx=4, pady=3, sticky="ew")
 
         self.update_segment_button = self.make_button(
             segment_commands,
-            text="Update Segment", role="Compact.Success",
+            text="Update Segment", role="Secondary",
             command=self.update_segment,
             state="disabled",
         )
-        self.update_segment_button.pack(side="left", padx=4)
+        self.update_segment_button.grid(row=0, column=1, padx=4, pady=3, sticky="ew")
+        self.make_button(
+            segment_commands, text="Remove Segment", role="Danger", command=self.remove_segment
+        ).grid(row=1, column=0, padx=4, pady=3, sticky="ew")
+        self.make_button(
+            segment_commands, text="Duplicate Segment", role="Secondary", command=self.duplicate_segment
+        ).grid(row=1, column=1, padx=4, pady=3, sticky="ew")
 
         self.content_frame.columnconfigure(0, weight=1)
         self.structure_panel.grid(row=0, column=0, sticky="nsew", padx=12, pady=4)
@@ -583,12 +564,6 @@ class TreadmillApp:
         )
         height = header_height + self.content_frame.winfo_reqheight()
         self.root.geometry(f"{width}x{max(600, min(height, self.root.maxsize()[1]))}")
-
-    def _wrap_segment_actions(self, width, buttons):
-        stacked = sum(button.winfo_reqwidth() + 6 for button in buttons) > width
-        for index, button in enumerate(buttons):
-            button.grid(row=index if stacked else 0, column=0 if stacked else index,
-                        sticky="w", padx=(0, 6), pady=2)
 
     def _on_content_configure(self, event=None):
         height = max(self.page_canvas.winfo_height(), self.content_frame.winfo_reqheight())
@@ -1008,16 +983,22 @@ class TreadmillApp:
                                             "parent_block": entry, "wrapper": None}
 
     def start_tree_drag(self, event):
+        self.hide_block_drop_indicator()
         item = self.tree.identify_row(event.y)
         self.drag_source_item = item if item in self.tree_item_data else None
         self.drag_start = (event.x, event.y)
         self.drag_original_position = None
+        self.drag_destination = None
+        self.drag_preview_point = None
         if not item and self.tree.identify_region(event.x, event.y) == "nothing":
             return self.clear_tree_selection()
 
     def show_tree_drag_preview(self, event):
         iid = getattr(self, "drag_source_item", None)
         source = self.tree_item_data.get(iid)
+        if source and source["kind"] == "block":
+            self.preview_block_drag(event, iid)
+            return
         if not source or source["kind"] != "segment":
             return
         start_x, start_y = self.drag_start
@@ -1055,6 +1036,114 @@ class TreadmillApp:
         self.tree.move(iid, parent, index)
         self.drag_destination = (target_iid, after, above_block)
 
+    def block_drop_destination(self, event, source_iid):
+        if not (0 <= event.x < self.tree.winfo_width()
+                and 0 <= event.y < self.tree.winfo_height()):
+            return None
+        if self.tree.identify_region(event.x, event.y) in ("heading", "separator"):
+            return None
+        target_iid = self.tree.identify_row(event.y)
+        if not target_iid:
+            return ("", False)
+        target = self.tree_item_data.get(target_iid)
+        if target is None:
+            return None
+        box = self.tree.bbox(target_iid)
+        if not box:
+            return None
+        after = event.y > box[1] + box[3] / 2
+        anchor = self.tree.parent(target_iid) or target_iid
+        if anchor == source_iid:
+            return None
+        return (anchor, after)
+
+    def preview_block_drag(self, event, iid):
+        start_x, start_y = self.drag_start
+        if (self.drag_original_position is None
+                and max(abs(event.x - start_x), abs(event.y - start_y)) < 5):
+            return
+        destination = self.block_drop_destination(event, iid)
+        if destination is None:
+            # The live preview can move the original subtree under the pointer.
+            # Keep its accepted destination until the pointer leaves that subtree.
+            if (self.drag_original_position is not None
+                    and self.block_drag_over_source(event, iid)):
+                self.drag_preview_point = (event.x, event.y)
+                return
+            self.restore_tree_drag_position(iid)
+            self.drag_destination = None
+            self.hide_block_drop_indicator()
+            return
+        if self.drag_original_position is None:
+            self.drag_original_position = ("", self.tree.index(iid))
+        anchor, after = destination
+        index = "end"
+        if anchor:
+            index = self.tree.index(anchor) + int(after)
+            if self.tree.index(iid) < index:
+                index -= 1
+        self.tree.move(iid, "", index)
+        self.drag_destination = destination
+        self.drag_preview_point = (event.x, event.y)
+        self.show_block_drop_indicator(iid, after or not anchor)
+
+    def block_drag_over_source(self, event, iid):
+        if not (0 <= event.x < self.tree.winfo_width()
+                and 0 <= event.y < self.tree.winfo_height()):
+            return False
+        if self.tree.identify_region(event.x, event.y) in ("heading", "separator"):
+            return False
+        target = self.tree.identify_row(event.y)
+        return bool(target and (target == iid or self.tree.parent(target) == iid))
+
+    def hide_block_drop_indicator(self):
+        indicator = getattr(self, "block_drop_indicator", None)
+        if indicator is not None:
+            indicator.place_forget()
+
+    def show_block_drop_indicator(self, iid, after):
+        indicator = getattr(self, "block_drop_indicator", None)
+        if indicator is None:
+            return
+        row = iid
+        if after and self.tree.item(iid, "open"):
+            visible = [child for child in self.tree.get_children(iid) if self.tree.bbox(child)]
+            if visible:
+                row = visible[-1]
+        box = self.tree.bbox(row)
+        if box:
+            y = box[1] + (box[3] if after else 0)
+            indicator.place(x=1, y=min(y, self.tree.winfo_height() - 3),
+                            width=max(1, self.tree.winfo_width() - 2), height=2)
+            indicator.lift()
+
+    def finish_block_drag(self, source_iid, destination):
+        anchor, after = destination
+        block = self.tree_item_data[source_iid]["block"]
+        open_blocks = {
+            id(data["block"]): self.tree.item(iid, "open")
+            for iid, data in self.tree_item_data.items() if data["kind"] == "block"
+        }
+        old_index = next(i for i, entry in enumerate(self.blocks) if entry is block)
+        self.blocks.pop(old_index)
+        index = len(self.blocks)
+        if anchor:
+            target = self.tree_item_data[anchor]
+            entry = target["block"] if target["kind"] == "block" else target["wrapper"]
+            index = next(i for i, item in enumerate(self.blocks) if item is entry) + int(after)
+        self.blocks.insert(index, block)
+        self.reset_block_editor()
+        self.reset_segment_editor()
+        self.refresh_tree()
+        for iid, data in self.tree_item_data.items():
+            if data["kind"] == "block":
+                self.tree.item(iid, open=open_blocks[id(data["block"])])
+        selected = f"block_{index}"
+        self.tree.selection_set(selected)
+        self.tree.focus(selected)
+        self.tree.see(selected)
+        self.update_summary()
+
     def is_drop_above_source_block(self, source, target, box, y):
         return (
             target is not None
@@ -1070,6 +1159,7 @@ class TreadmillApp:
             self.drag_original_position = None
 
     def clear_tree_selection(self, event=None):
+        self.hide_block_drop_indicator()
         self.restore_tree_drag_position(getattr(self, "drag_source_item", None))
         self.drag_source_item = None
         selection = self.tree.selection()
@@ -1080,17 +1170,28 @@ class TreadmillApp:
         return "break"
 
     def finish_tree_drag(self, event):
+        self.hide_block_drop_indicator()
         source_iid = getattr(self, "drag_source_item", None)
         destination = (self.drag_destination
                        if getattr(self, "drag_original_position", None) is not None else None)
+        source = self.tree_item_data.get(source_iid)
+        if (destination is not None and source and source["kind"] == "block"
+                and (event.x, event.y) != self.drag_preview_point):
+            # Resolve the release against what is visible, before restoring the
+            # preview. Restoring first can put a different row under the pointer.
+            current = self.block_drop_destination(event, source_iid)
+            if current is not None or not self.block_drag_over_source(event, source_iid):
+                destination = current
         self.restore_tree_drag_position(source_iid)
         self.drag_source_item = None
         if not source_iid or source_iid not in self.tree_item_data:
             return
 
         source = self.tree_item_data[source_iid]
-        if source["kind"] != "segment":
-            return  # Blocks retain their dedicated Move Block controls.
+        if source["kind"] == "block":
+            if destination is not None:
+                self.finish_block_drag(source_iid, destination)
+            return
 
         if destination is None:
             target_iid = self.tree.identify_row(event.y)
@@ -1145,24 +1246,24 @@ class TreadmillApp:
         self.update_summary()
 
     def on_tree_select(self, event=None):
+        # Tree indices during a live drag are a preview, not model locations.
+        if getattr(self, "drag_original_position", None) is not None:
+            return
         selection = self.tree.selection()
-        if (self.editing_segment is not None
-                and self.editing_segment != self.get_selected_segment_location()):
+        location = self.get_selected_segment_location() if selection else None
+        if self.editing_segment is not None and self.editing_segment != location:
             self.editing_segment = None
             self.update_segment_button.config(state="disabled")
         if not selection:
             self.reset_block_editor()
             return
-        item = selection[0]
-        parent = self.tree.parent(item)
-        if parent:
+        if location is not None:
             self.reset_block_editor()
+            # Repeated selection events must not discard edits to this segment.
+            if self.editing_segment != location:
+                self.edit_segment()
         else:
-            index = self.tree.index(item)
-            if self.blocks[index].get("type") == "block":
-                self.edit_block(index)
-            else:
-                self.reset_block_editor()
+            self.edit_block(self.tree.index(selection[0]))
 
     def calculate_totals(self):
         return workout_totals(self.blocks)
@@ -1193,50 +1294,28 @@ class TreadmillApp:
         panel = ttk.Frame(self.root, padding=(12, 0, 12, 3))
         panel.pack(fill="x")
         self.last_qz_endpoint = load_qz_endpoint()
+        # Keep endpoint configuration and verification available internally.
         self.qz_address = tk.StringVar(master=self.root, value=self.last_qz_endpoint or "")
-        self.qz_status = tk.StringVar(master=self.root, value="Choose a QZ device or open Manual address.")
+        self.qz_status = tk.StringVar(master=self.root, value="Choose a device under QZ Devices to verify its connection.")
         self.qz_result = None
         self.qz_cancel = None
-        ttk.Label(panel, text="QZ:").grid(row=0, column=0, sticky="w")
-        self.make_button(panel, text="Manual address…", role="Secondary",
-                         command=self.toggle_qz_manual).grid(row=0, column=1, sticky="w", padx=6)
-        ttk.Label(panel, textvariable=self.qz_address, width=22).grid(
-            row=0, column=2, columnspan=2, sticky="w")
-        self.qz_manual_panel = ttk.Frame(panel, padding=(0, 6, 0, 0))
-        self.qz_manual_panel.grid(row=2, column=0, columnspan=6, sticky="ew")
-        self.qz_manual_panel.columnconfigure(1, weight=1)
-        ttk.Label(self.qz_manual_panel, text="WebSocket address:").grid(row=0, column=0, sticky="w")
-        address_entry = ttk.Entry(self.qz_manual_panel, textvariable=self.qz_address, width=24)
-        address_entry.grid(row=0, column=1, sticky="ew", padx=6)
-        manual_verify = self.make_button(self.qz_manual_panel, text="Verify manual address",
-                                        role="Secondary", command=self.test_qz_connection)
-        manual_verify.grid(row=0, column=2)
-        self.qz_manual_panel.grid_remove()
-        send_button = self.make_button(panel, text="Send to QZ", command=self.send_to_qz)
-        send_button.grid(row=0, column=5)
-        self.qz_controls = (address_entry, manual_verify, send_button)
+        self.qz_controls = (self.main_buttons["Send to QZ"],)
         self.qz_cancel_button = self.make_button(
             panel, text="Cancel", role="Secondary", command=self.cancel_qz_verification
         )
-        self.qz_cancel_button.grid(row=0, column=4, padx=(0, 6))
+        self.qz_cancel_button.grid(row=0, column=1, padx=(6, 0))
         self.qz_cancel_button.state(["disabled"])
         self.qz_cancel_button.grid_remove()
-        panel.columnconfigure(1, weight=1)
+        panel.columnconfigure(0, weight=1)
         status = ttk.Label(panel, textvariable=self.qz_status, justify="left")
-        status.grid(row=1, column=0, columnspan=5, sticky="w")
-        self.qz_discovery = DiscoveryControls(self, panel)
+        status.grid(row=0, column=0, sticky="w")
+        self.qz_discovery = DiscoveryControls(self, panel, button=self.main_buttons["QZ Devices"])
         panel.bind("<Configure>", lambda event: status.configure(
-            wraplength=max(1, event.width - 180)
+            wraplength=max(1, event.width - 110)
         ))
         self.qz_address.trace_add("write", lambda *_: self.qz_status.set(
-            "Address changed. Verify it under Manual address before sending a workout."
+            "QZ endpoint changed. Select a device under QZ Devices to verify its connection."
         ))
-
-    def toggle_qz_manual(self):
-        if self.qz_manual_panel.winfo_manager():
-            self.qz_manual_panel.grid_remove()
-        else:
-            self.qz_manual_panel.grid()
 
     def connect_discovered_qz(self, service):
         if self.qz_result is not None:
@@ -1265,7 +1344,7 @@ class TreadmillApp:
         if self.qz_result is not None:
             return
         if not self.qz_address.get().strip():
-            self.qz_status.set("Choose a QZ device or enter its address under Manual address.")
+            self.qz_status.set("Open QZ Devices and connect to a device before sending a workout.")
             return
         name = self.workout_name.get().strip() or DEFAULT_WORKOUT_NAME
         try:
@@ -1278,7 +1357,7 @@ class TreadmillApp:
     def start_qz_operation(self, operation, status, *args, verification=False):
         address = self.qz_address.get().strip()
         if not address:
-            self.qz_status.set("Enter the address shown by QZ.")
+            self.qz_status.set("Open QZ Devices and select a device to connect.")
             return
         result = self.qz_result = SimpleQueue()
         cancel = self.qz_cancel = Event() if verification else None
@@ -1313,7 +1392,7 @@ class TreadmillApp:
             except (QzConnectionError, QzSaveUncertainError) as error:
                 message = str(error)
                 if verification:
-                    message += " If QZ restarted, paste its current floating-window URL."
+                    message += " If QZ restarted, open QZ Devices and search again."
                 result.put((message, None))
             except Exception:
                 result.put(("QZ operation interrupted. Check QZ before trying again.", None))
