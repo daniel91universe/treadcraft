@@ -7,7 +7,12 @@ controls first open. **QZ devices** opens the discovered-service list. Select a
 service and choose **Connect to selected QZ** to verify its QZ identity using the
 existing WebSocket client. Discovery never sends a workout. **Search again**
 starts another bounded search; closing the list cancels an active search.
-Manual address entry, Test Connection, Reconnect to QZ and Send to QZ remain available.
+Manual address entry and **Verify manual address** are available in the collapsed
+**Manual address** section. **Send to QZ** remains the primary action. The main
+Test Connection and Reconnect buttons have been removed; their internal verifier
+and reconnection functions remain available to the application. **Cancel** appears
+only during cancellable identity verification, not while a workout is being sent.
+XML export is labelled **Export XML** and retains the existing XML format.
 
 This requires a QZ build that advertises this DNS-SD service. QZ Android 2.20.29
 without that feature can still use the manual workflow. Keep QZ in the foreground

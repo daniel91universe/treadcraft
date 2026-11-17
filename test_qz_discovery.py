@@ -59,6 +59,7 @@ class DiscoveryTests(unittest.IsolatedAsyncioTestCase):
         class Browser:
             def __init__(self, zc, type_, handlers):
                 if broken_browser: raise OSError('No network interface')
+                state.changed = handlers[0]
                 self.handles = [asyncio.get_running_loop().call_later(
                     delay, lambda n=name, s=change: handlers[0](
                         zeroconf=zc, service_type=type_, name=n, state_change=s))
@@ -121,8 +122,17 @@ class DiscoveryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(snapshots[-1]), 1)
 
     async def test_updated_port_replaces_old_endpoint(self):
-        result, snapshots = await self.scan([(0, NAME, 'added'), (.03, NAME, 'updated')],
-                                           {NAME: {'ports': [38729, 12345]}})
+        backend, state = self.backend([(0, NAME, 'added')], {NAME: {'ports': [38729, 12345]}})
+        snapshots = []
+        task = asyncio.create_task(discover(duration=.4, backend=backend, emit=snapshots.append))
+        for _ in range(100):
+            if snapshots:
+                break
+            await asyncio.sleep(.001)
+        self.assertTrue(snapshots)
+        state.changed(zeroconf=None, service_type=SERVICE_TYPE, name=NAME, state_change='updated')
+        result = await task
+        self.assertTrue(state.closed and state.cancelled)
         self.assertEqual(snapshots[0][0].endpoints, ('ws://192.168.1.12:38729/',))
         self.assertEqual(result[0].endpoints, ('ws://192.168.1.12:12345/',))
 

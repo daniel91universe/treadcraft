@@ -285,7 +285,7 @@ class TreadmillApp:
             file_actions, text="Check Commercial LE", command=self.check_commercial_le
         ).pack(side="left", padx=5)
 
-        self.make_button(file_actions, text="Export to QZ XML",
+        self.make_button(file_actions, text="Export XML",
                          command=self.export_qz_xml).pack(side="left", padx=5)
 
         self.create_qz_controls()
@@ -1194,29 +1194,33 @@ class TreadmillApp:
         panel.pack(fill="x")
         self.last_qz_endpoint = load_qz_endpoint()
         self.qz_address = tk.StringVar(master=self.root, value=self.last_qz_endpoint or "")
-        self.qz_status = tk.StringVar(master=self.root, value="Enter the address shown by QZ.")
+        self.qz_status = tk.StringVar(master=self.root, value="Choose a QZ device or open Manual address.")
         self.qz_result = None
         self.qz_cancel = None
-        ttk.Label(panel, text="QZ address:").grid(row=0, column=0, sticky="w")
-        address_entry = ttk.Entry(panel, textvariable=self.qz_address, width=16)
+        ttk.Label(panel, text="QZ:").grid(row=0, column=0, sticky="w")
+        self.make_button(panel, text="Manual address…", role="Secondary",
+                         command=self.toggle_qz_manual).grid(row=0, column=1, sticky="w", padx=6)
+        ttk.Label(panel, textvariable=self.qz_address, width=22).grid(
+            row=0, column=2, columnspan=2, sticky="w")
+        self.qz_manual_panel = ttk.Frame(panel, padding=(0, 6, 0, 0))
+        self.qz_manual_panel.grid(row=2, column=0, columnspan=6, sticky="ew")
+        self.qz_manual_panel.columnconfigure(1, weight=1)
+        ttk.Label(self.qz_manual_panel, text="WebSocket address:").grid(row=0, column=0, sticky="w")
+        address_entry = ttk.Entry(self.qz_manual_panel, textvariable=self.qz_address, width=24)
         address_entry.grid(row=0, column=1, sticky="ew", padx=6)
-        test_button = self.make_button(panel, text="Test Connection", role="Secondary",
-                                       command=self.test_qz_connection)
-        test_button.grid(row=0, column=2, padx=(0, 6))
+        manual_verify = self.make_button(self.qz_manual_panel, text="Verify manual address",
+                                        role="Secondary", command=self.test_qz_connection)
+        manual_verify.grid(row=0, column=2)
+        self.qz_manual_panel.grid_remove()
         send_button = self.make_button(panel, text="Send to QZ", command=self.send_to_qz)
         send_button.grid(row=0, column=5)
-        self.qz_controls = (address_entry, test_button, send_button)
-        self.qz_reconnect_button = self.make_button(
-            panel, text="Reconnect to QZ", role="Secondary", command=self.reconnect_to_qz
-        )
-        self.qz_reconnect_button.grid(row=0, column=3, padx=(0, 6))
+        self.qz_controls = (address_entry, manual_verify, send_button)
         self.qz_cancel_button = self.make_button(
             panel, text="Cancel", role="Secondary", command=self.cancel_qz_verification
         )
         self.qz_cancel_button.grid(row=0, column=4, padx=(0, 6))
         self.qz_cancel_button.state(["disabled"])
-        if not self.last_qz_endpoint:
-            self.qz_reconnect_button.state(["disabled"])
+        self.qz_cancel_button.grid_remove()
         panel.columnconfigure(1, weight=1)
         status = ttk.Label(panel, textvariable=self.qz_status, justify="left")
         status.grid(row=1, column=0, columnspan=5, sticky="w")
@@ -1225,8 +1229,14 @@ class TreadmillApp:
             wraplength=max(1, event.width - 180)
         ))
         self.qz_address.trace_add("write", lambda *_: self.qz_status.set(
-            "Address changed. Test the connection or send a workout."
+            "Address changed. Verify it under Manual address before sending a workout."
         ))
+
+    def toggle_qz_manual(self):
+        if self.qz_manual_panel.winfo_manager():
+            self.qz_manual_panel.grid_remove()
+        else:
+            self.qz_manual_panel.grid()
 
     def connect_discovered_qz(self, service):
         if self.qz_result is not None:
@@ -1255,7 +1265,7 @@ class TreadmillApp:
         if self.qz_result is not None:
             return
         if not self.qz_address.get().strip():
-            self.qz_status.set("Enter the address shown by QZ.")
+            self.qz_status.set("Choose a QZ device or enter its address under Manual address.")
             return
         name = self.workout_name.get().strip() or DEFAULT_WORKOUT_NAME
         try:
@@ -1274,8 +1284,8 @@ class TreadmillApp:
         cancel = self.qz_cancel = Event() if verification else None
         for widget in self.qz_controls:
             widget.state(["disabled"])
-        self.qz_reconnect_button.state(["disabled"])
         if verification:
+            self.qz_cancel_button.grid()
             self.qz_cancel_button.state(["!disabled"])
         self.qz_status.set(status)
 
@@ -1328,8 +1338,7 @@ class TreadmillApp:
                 message = "QZ verified. The address could not be saved for the next session."
         self.qz_cancel = self.qz_result = None
         self.qz_cancel_button.state(["disabled"])
-        if self.last_qz_endpoint:
-            self.qz_reconnect_button.state(["!disabled"])
+        self.qz_cancel_button.grid_remove()
         for widget in self.qz_controls:
             widget.state(["!disabled"])
         self.qz_status.set(message)
