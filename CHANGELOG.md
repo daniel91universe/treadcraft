@@ -1,6 +1,15 @@
 # Changelog
 
-## v0.4.0 (unreleased)
+## v0.5.0 · 2026-11-17
+
+- Added bounded QZ DNS-SD discovery for builds advertising `_qzws._tcp.local.`, with explicit identity verification and workout sending.
+- Compacted the toolbar into three columns and unified Segments/Blocks actions; selection loads segment fields directly.
+- Added whole-block drag-and-drop with a destination indicator and cancellation, preserving JSON/XML formats and ordered repeats.
+- Completed onedir packaging with the project license, current README and 3×3000 m example beside the executable.
+- Documented pinned build requirements and updated discovery recovery messages.
+- Discovery remains dependent on QZ advertisement and LAN multicast; Commercial LE hardware validation remains pending.
+
+## v0.4.0
 
 - Send workouts directly from Windows to QZ Android over local Wi-Fi, with confirmation of the saved program name and row count. XML export remains available.
 - Verify the QZ address, reconnect to the last verified address after restarting TreadCraft, or cancel a connection check. If QZ changes address or port, enter its current URL and test again.
