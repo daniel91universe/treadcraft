@@ -66,7 +66,7 @@ async def verify_service(service, *, timeout=2):
             return await verify_qz(endpoint, timeout=timeout)
         except QzConnectionError:
             continue
-    raise QzConnectionError("Discovered QZ could not be verified. Refresh discovery or use its current manual address.")
+    raise QzConnectionError("Discovered QZ could not be verified. Open QZ Devices and choose Search again. Keep QZ open and check that it advertises its service on this LAN.")
 
 
 async def discover(*, duration=6, cancel=None, emit=lambda services: None, backend=None):
@@ -78,7 +78,7 @@ async def discover(*, duration=6, cancel=None, emit=lambda services: None, backe
             from zeroconf import IPVersion, ServiceStateChange
             from zeroconf.asyncio import AsyncServiceBrowser, AsyncServiceInfo, AsyncZeroconf
         except ImportError as exc:
-            raise RuntimeError("Discovery requires zeroconf. Manual connection is still available.") from exc
+            raise RuntimeError("Discovery requires zeroconf. Install the documented dependencies, then open QZ Devices and choose Search again. Check that QZ advertises its service on this LAN.") from exc
         backend = (AsyncZeroconf, AsyncServiceBrowser, AsyncServiceInfo, IPVersion.V4Only,
                    ServiceStateChange.Removed)
     Zc, Browser, Info, ipv4, removed = backend
