@@ -1,5 +1,47 @@
 # TreadCraft
 
+## Automatic QZ discovery (development branch)
+
+TreadCraft searches for `_qzws._tcp.local.` for six seconds when the QZ connection
+controls first open. **QZ devices** opens the discovered-service list. Select a
+service and choose **Connect to selected QZ** to verify its QZ identity using the
+existing WebSocket client. Discovery never sends a workout. **Search again**
+starts another bounded search; closing the list cancels an active search.
+**QZ Devices** and **Send to QZ** occupy the third column of the compact toolbar.
+The other columns contain **Open Workout** / **Save Workout** and
+**Check Commercial LE** / **Export XML**. The Manual address panel is removed in
+this experimental UI; internal endpoint configuration, identity verification and
+reconnection remain available to the application. **Cancel** appears only during
+cancellable identity verification, not while a workout is being sent.
+XML export retains the existing format.
+
+This UI requires a QZ build that advertises the DNS-SD service for device selection.
+QZ Android 2.20.29 without discovery can still import exported XML; it cannot be
+selected automatically. Keep QZ in the foreground and use the same LAN as Windows;
+Internet access is unnecessary. Multicast may be blocked by Wi-Fi client isolation,
+VPNs or firewall policy. Multiple advertised local IPv4 addresses are tried only
+after the user chooses Connect, with a bounded identity-verification timeout per
+address. A verification is a point-in-time check, not a persistent connection.
+Refresh after an IP or port change. Sending always requires an explicit action.
+
+Drag a block heading to reorder the whole block, including its repeats and
+segments. A line marks the destination. Drop on a different block to place it
+before/after that entire block, including when pointing at a child segment.
+Press Esc or release outside the list to cancel. Segment drag remains available.
+The **Segments** and **Blocks** editors use the same action layout and colours:
+Add (green) / Update (neutral) above Remove (red) / Duplicate (neutral).
+Select a segment in **Workout Structure** to load its fields automatically, then
+choose **Update Segment** to apply edits. There is no separate Edit Segment button.
+
+Use Python 3.12 and install `requirements.txt` in a virtual environment.
+DNS-SD uses `zeroconf==0.154.0` and `ifaddr==0.2.0`; no Bonjour executable is required.
+On Windows, the existing PyInstaller onedir approach is available as
+`python -m PyInstaller --clean TreadCraft.spec`. The spec collects zeroconf's
+dynamic modules and dependency/license metadata along with the existing brand
+assets. Run tests with `python -m unittest discover -q`. Keep historical pinned
+release-build scripts for their original releases; they do not package this
+uncommitted development branch.
+
 TreadCraft is a Windows desktop app for building treadmill workouts from individual segments and repeatable blocks. Save workouts as editable JSON, export them as QZ (qdomyos-zwift) XML, or send them directly to QZ Android over local Wi-Fi.
 
 ![TreadCraft on Windows showing the 3 × 3000 m workout, with the workout table on the left and the segment and block editors on the right](docs/images/treadcraft-v0.3.0-windows.PNG)
@@ -42,9 +84,9 @@ The first command opens a Tkinter test window. Close it before continuing. Insta
 ## Create a workout
 
 1. Enter a **Workout name**.
-2. In **Add or Edit Segment**, choose a segment type and give it a name. Set it by **Time** (minutes) or **Distance** (km or m), then enter speed (km/h) and incline (%).
+2. In **Segments**, choose a segment type and give it a name. Set it by **Time** (minutes) or **Distance** (km or m), then enter speed (km/h) and incline (%).
 3. Use **Add Segment** to insert at the top level when nothing is selected, or immediately after a selected top-level segment. For repeated intervals, use **Add Block**, then select the block or one of its segments to add each interval or recovery to that block. Click a blank area of the workout list or press **Esc** to clear the selection and return to top-level insertion.
-4. To edit a segment, select it under **Workout Structure**, click **Edit Segment**, change its values, then click **Update Segment**. Drag segments to reorder them.
+4. To edit a segment, select it under **Workout Structure** to load its fields, change its values, then click **Update Segment**. Drag segments to reorder them.
 5. Click **Save Workout** and save the file as `workout.json`. Use **Open Workout** to edit it later.
 
 Try the included [3 × 3000 m workout](examples/3x3000mt.json) with **Open Workout**.
@@ -52,15 +94,14 @@ Try the included [3 × 3000 m workout](examples/3x3000mt.json) with **Open Worko
 ## Send a workout to QZ over Wi-Fi
 
 1. Connect the Windows PC and Android device to the same Wi-Fi network. The transfer was verified with **QZ Android 2.20.29** on a local network without Internet access.
-2. In QZ, use **Open Floating on a Browser** to get the current URL ending in `/floating/floating.htm`. Return to QZ and keep it in the foreground during the transfer.
-3. Paste the full URL into **QZ address** in TreadCraft and click **Test Connection**. Wait for **QZ verified.** TreadCraft remembers the last verified address on this Windows account.
-4. Open a workout and click **Send to QZ**. Wait for **Saved in QZ** and note the program name and row count in the confirmation. Open that program in QZ to review it. With the included 3 × 3000 m example, expect **8 rows**, with **3 km** in rows **2, 4, and 6**. Sending saves the program in QZ for review.
-5. After restarting TreadCraft, use **Reconnect to QZ** to verify the saved address again. If QZ's IP address or port has changed, paste the current URL and run **Test Connection**. Use **Cancel** to stop a connection check while it is in progress.
+2. Keep a discovery-enabled QZ build in the foreground. Open **QZ Devices**, select the advertised device and choose **Connect to selected QZ**. Wait for **QZ verified.** Selection verifies identity; it does not send a workout. Use **Cancel** to stop verification.
+3. Open a workout and click **Send to QZ**. Wait for **Saved in QZ** and check the program in QZ. The included 3 × 3000 m example has **8 rows**, with **3 km** in rows **2, 4, and 6**. Sending saves a program for review.
+4. If QZ restarts or changes port, open **QZ Devices** and choose **Search again**, then connect to the current endpoint. There is no manual-address panel in this experimental UI. For QZ versions without discovery, use XML export and file import.
 
 ## Export QZ XML
 
 1. Open a workout in TreadCraft with **Open Workout**. To try the export, use [examples/3x3000mt.json](examples/3x3000mt.json).
-2. Click **Export to QZ XML**. Review the row counts, scheduled duration, estimated duration for distance segments, and compatibility warnings. The example shows 8 rows, including 5 timed and 3 distance segments.
+2. Click **Export XML**. Review the row counts, scheduled duration, estimated duration for distance segments, and compatibility warnings. The example shows 8 rows, including 5 timed and 3 distance segments.
 3. Click **Export**, choose a destination for the XML file, and save it. Transfer the file to your Android device and open it in QZ as a training program to review the preview.
 
 The exporter checks a preliminary Commercial LE profile and blocks incompatible workouts, such as segments with negative incline. Saving a new XML file requires a destination that supports hard links. If the destination does not support them, choose another folder.

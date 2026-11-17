@@ -113,10 +113,12 @@ class SegmentSelectionTests(unittest.TestCase):
             self.outside, {"type": "segment", "segment": self.inner}, self.block,
         ])
 
-    def test_selecting_another_row_invalidates_edit_without_resetting_form(self):
+    def test_selecting_another_segment_loads_it_for_editing(self):
         self.app.editing_segment = ("block", 1, 0)
         self.selected = ("outside",)
+        self.app.edit_segment = Mock()
         self.app.on_tree_select()
         self.assertIsNone(self.app.editing_segment)
+        self.app.edit_segment.assert_called_once_with()
         self.app.reset_segment_editor.assert_not_called()
         self.app.update_segment_button.config.assert_called_once_with(state="disabled")
