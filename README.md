@@ -1,5 +1,32 @@
 # TreadCraft
 
+## Automatic QZ discovery (development branch)
+
+TreadCraft searches for `_qzws._tcp.local.` for six seconds when the QZ connection
+controls first open. **QZ devices** opens the discovered-service list. Select a
+service and choose **Connect to selected QZ** to verify its QZ identity using the
+existing WebSocket client. Discovery never sends a workout. **Search again**
+starts another bounded search; closing the list cancels an active search.
+Manual address entry, Test Connection, Reconnect to QZ and Send to QZ remain available.
+
+This requires a QZ build that advertises this DNS-SD service. QZ Android 2.20.29
+without that feature can still use the manual workflow. Keep QZ in the foreground
+and use the same LAN as Windows; Internet access is unnecessary. Multicast may be
+blocked by Wi-Fi client isolation, VPNs or firewall policy. Do not disable system
+protections. Multiple advertised local IPv4 addresses are tried only after the
+user chooses Connect, with a bounded identity-verification timeout per address.
+An identity check is a point-in-time verification, not a persistent connection
+or a guarantee that QZ will remain online. Refresh after an IP or port change.
+
+Use Python 3.12 and install `requirements.txt` in a virtual environment.
+DNS-SD uses `zeroconf==0.154.0` and `ifaddr==0.2.0`; no Bonjour executable is required.
+On Windows, the existing PyInstaller onedir approach is available as
+`python -m PyInstaller --clean TreadCraft.spec`. The spec collects zeroconf's
+dynamic modules and dependency/license metadata along with the existing brand
+assets. Run tests with `python -m unittest discover -q`. Keep historical pinned
+release-build scripts for their original releases; they do not package this
+uncommitted development branch.
+
 TreadCraft is a Windows desktop app for building treadmill workouts from individual segments and repeatable blocks. Save workouts as editable JSON, export them as QZ (qdomyos-zwift) XML, or send them directly to QZ Android over local Wi-Fi.
 
 ![TreadCraft on Windows showing the 3 × 3000 m workout, with the workout table on the left and the segment and block editors on the right](docs/images/treadcraft-v0.3.0-windows.PNG)

@@ -18,6 +18,8 @@ from workout_data import (
 )
 from device_capabilities import ProfileCompatibilityError, assess_workout
 from qz_connection_config import load_qz_endpoint, save_qz_endpoint
+from qz_discovery import verify_service
+from qz_discovery_ui import DiscoveryControls
 from qz_ws_client import QzConnectionError, QzSaveUncertainError, save_training_program, verify_qz
 from qz_ws_payload import build_save_payload
 from qz_xml_export import QzXmlExportError, export_workout
@@ -1217,13 +1219,22 @@ class TreadmillApp:
             self.qz_reconnect_button.state(["disabled"])
         panel.columnconfigure(1, weight=1)
         status = ttk.Label(panel, textvariable=self.qz_status, justify="left")
-        status.grid(row=1, column=0, columnspan=6, sticky="w")
+        status.grid(row=1, column=0, columnspan=5, sticky="w")
+        self.qz_discovery = DiscoveryControls(self, panel)
         panel.bind("<Configure>", lambda event: status.configure(
-            wraplength=max(1, event.width - 24)
+            wraplength=max(1, event.width - 180)
         ))
         self.qz_address.trace_add("write", lambda *_: self.qz_status.set(
             "Address changed. Test the connection or send a workout."
         ))
+
+    def connect_discovered_qz(self, service):
+        if self.qz_result is not None:
+            return
+        self.qz_address.set(service.endpoints[0])
+        async def verify_selected(address):
+            return await verify_service(service)
+        self.start_qz_operation(verify_selected, "Verifying selected QZ…", verification=True)
 
     def test_qz_connection(self):
         if self.qz_result is None:
@@ -1309,6 +1320,7 @@ class TreadmillApp:
         if self.qz_cancel is not None and self.qz_cancel.is_set():
             message = "QZ verification cancelled."
         elif endpoint is not None:
+            self.qz_address.set(endpoint)
             self.last_qz_endpoint = endpoint
             try:
                 save_qz_endpoint(endpoint)
